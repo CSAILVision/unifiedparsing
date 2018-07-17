@@ -1,6 +1,6 @@
 # Unified Perceptual Parsing for Scene Understanding (Under Construction)
 
-This is a pyTorch implementation of the unified perceptual parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding]().
+This is a pyTorch implementation of the unified perceptual parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding](), to which Tete Xiao, Yingcheng Liu, and Bolei Zhou contribute equally.
 
 Broden+ dataset is the standardized Broden dataset, previously proposed in [Network Dissection](https://github.com/CSAILVision/NetDissect). ADE20K dataset is a recent image dataset for [scene parsing](https://github.com/CSAILVision/semantic-segmentation-pytorch). 
 
@@ -33,9 +33,8 @@ You can train the networks and evaluate them on the Broden+ dataset
 
 ## Reference
 
-If you find the code or the pretrained models useful, please consider to cite the following papers:
+If you find the code or the pretrained models useful, please consider to cite the following paper:
 
-Unified Perceptual Parsing for Scene Understanding. T. Xiao, Y. Liu, B. Zhou, Y. Jiang, and J. Sun. arXiv preprint
 ```
     @article{xiao2018unified,
       title={Unified Perceptual Parsing for Scene Understanding},
