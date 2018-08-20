@@ -1,1 +1,7 @@
+*.pyc
 .DS_Store
+
+ckpt/
+vis/
+log/
+pretrained/
