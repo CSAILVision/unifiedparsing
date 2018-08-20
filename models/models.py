@@ -18,18 +18,37 @@ class SegmentationModuleBase(nn.Module):
         acc = acc_sum.float() / (pixel_sum.float() + 1e-10)
         return acc
 
+    @staticmethod
+    def part_loss(pred, part_label, object_label):
+
 
 class SegmentationModule(SegmentationModuleBase):
     def __init__(self, net_enc, net_dec, crit, loss_scale=[None, None, None, None]):
         super(SegmentationModule, self).__init__()
         self.encoder = net_enc
         self.decoder = net_dec
-        self.crit = crit
+        self.crit_list = nn.ModuleList()
         self.loss_scale = loss_scale
 
-    def forward(self, feed_dict, *, segSize=None):
+        # scene crit
+        self.crit_list.append(nn.NLLLoss(ignore_index=-1))
+        # object crit
+        self.crit_list.append(nn.NLLLoss(ignore_index=-1))
+        # part crit
+
+
+    def forward(self, feed_dict, output_switch, *, segSize=None):
         if segSize is None: # training
-            pred = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True))
+            pred_list = self.decoder(
+                self.encoder(feed_dict['img_data'], return_feature_maps=True),
+                output_switch
+            )
+
+
+            if pred_list[i] is not None:
+                loss += sub_loss
+            loss = 0
+            loss += part_loss
 
             loss = self.crit(pred, feed_dict['seg_label'])
 
@@ -37,8 +56,8 @@ class SegmentationModule(SegmentationModuleBase):
             acc = self.pixel_acc(pred, feed_dict['seg_label'])
             return loss, acc
         else: # inference
-            pred = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True), segSize=segSize)
-            return pred
+            pred_list = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True), segSize=segSize)
+            return pred_list
 
 
 def conv3x3(in_planes, out_planes, stride=1, has_bias=False):
@@ -302,15 +321,14 @@ class UPerNet(nn.Module):
                     x, size=segSize, mode='bilinear', align_corners=False)
                 x = nn.functional.softmax(x, dim=1)
                 output_list[i] = x
-
-        # Training
-        for i in range(4):
-            if output_list[i] is None:
-                continue
-            x = output_list[i]
-            x = nn.functional.log_softmax(x, dim=1)
-            if i == 0: # for scene
-                x = x.squeeze([2, 3])
-            output_list[i] = x
+        else:   # Training
+            for i in range(4):
+                if output_list[i] is None:
+                    continue
+                x = output_list[i]
+                x = nn.functional.log_softmax(x, dim=1)
+                if i == 0: # for scene
+                    x = x.squeeze([2, 3])
+                output_list[i] = x
 
         return output_list

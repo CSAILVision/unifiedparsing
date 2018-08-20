@@ -28,13 +28,17 @@ def train(segmentation_module, iterator, optimizers, history, epoch, args):
     # main loop
     tic = time.time()
     for i in range(args.epoch_iters):
+
+        random_choose_data_soure
+        batch_data = next(chosen_iterator)
+
         batch_data = next(iterator)
         data_time.update(time.time() - tic)
 
         segmentation_module.zero_grad()
 
         # forward pass
-        loss, acc = segmentation_module(batch_data)
+        loss, acc = segmentation_module(batch_data, [, False])
         loss = loss.mean()
         acc = acc.mean()
 
@@ -174,6 +178,8 @@ def main(args):
         num_workers=int(args.workers),
         drop_last=True,
         pin_memory=True)
+    loader_train_object = DataLoader
+    loader_train_material = Dataloader
 
     print('1 Epoch = {} iters'.format(args.epoch_iters))
 
@@ -252,8 +258,6 @@ if __name__ == '__main__':
                         help='momentum for sgd, beta1 for adam')
     parser.add_argument('--weight_decay', default=1e-4, type=float,
                         help='weights regularizer')
-    parser.add_argument('--deep_sup_scale', default=0.4, type=float,
-                        help='the weight of deep supervision loss')
     parser.add_argument('--fix_bn', default=0, type=int,
                         help='fix bn params')
 
