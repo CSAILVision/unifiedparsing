@@ -230,8 +230,6 @@ class TrainDataset(torchdata.Dataset):
             seg_material=batch_material,
             valid_mat=batch_valid_mat)
 
-        print("type(output): {}".format(type(output)))
-
         return output
 
     def __len__(self):

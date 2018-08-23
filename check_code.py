@@ -159,7 +159,7 @@ def show_batches(batch_dict, use_imshow=False):
             pass
 
 
-def check_training_dataset():
+def get_args():
     assert LooseVersion(torch.__version__) >= LooseVersion('0.4.0'), \
         'PyTorch>=0.4.0 is required'
 
@@ -263,8 +263,11 @@ def check_training_dataset():
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    """ check data set """
+    return args
 
+
+def check_training_dataset():
+    args = get_args()
     training_records = broden_dataset.record_list['train']
     for idx_source in [1, 0]:
         dataset_train = TrainDataset(training_records[idx_source], args, batch_per_gpu=args.batch_size_per_gpu)
@@ -277,6 +280,25 @@ def check_training_dataset():
             show_batches(batch_dict, use_imshow=False)
 
 
+def check_multi_source_dataset():
+    args = get_args()
+
+    from train import create_multi_source_train_data_loader
+
+    multi_source = create_multi_source_train_data_loader(args)
+
+    for i in range(100):
+        batch_data, source_idx = next(multi_source)
+
+        print("**** batch idx {} ****".format(i))
+        print("source: {}".format(source_idx))
+
+        for idx_gpu in range(args.num_gpus):
+            print("gpu idx: {}".format(idx_gpu))
+            show_batches(batch_data[idx_gpu])
+
+
 if __name__ == "__main__":
     # check_broden_dataset_resolve_records()
-    check_training_dataset()
+    # check_training_dataset()
+    check_multi_source_dataset()

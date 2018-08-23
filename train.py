@@ -6,6 +6,7 @@ import random
 import argparse
 from distutils.version import LooseVersion
 # Numerical libs
+import numpy as np
 import torch
 import torch.nn as nn
 # Our libs
@@ -14,6 +15,8 @@ from models import ModelBuilder, SegmentationModule
 from utils import AverageMeter
 from lib.nn import UserScatteredDataParallel, user_scattered_collate, patch_replication_callback
 import lib.utils.data as torchdata
+
+from broden_dataset.joint_dataset import broden_dataset
 
 
 # train one epoch
@@ -29,16 +32,14 @@ def train(segmentation_module, iterator, optimizers, history, epoch, args):
     tic = time.time()
     for i in range(args.epoch_iters):
 
-        random_choose_data_soure
-        batch_data = next(chosen_iterator)
-
-        batch_data = next(iterator)
+        batch_data, _ = next(iterator)
         data_time.update(time.time() - tic)
 
         segmentation_module.zero_grad()
 
         # forward pass
-        loss, acc = segmentation_module(batch_data, [, False])
+        # TODO(LYC):: output switch
+        loss, acc = segmentation_module(batch_data, [False, False])
         loss = loss.mean()
         acc = acc.mean()
 
@@ -144,6 +145,33 @@ def adjust_learning_rate(optimizers, cur_iter, args):
         param_group['lr'] = args.running_lr_decoder
 
 
+def create_multi_source_train_data_loader(args):
+    training_records = broden_dataset.record_list['train']
+
+    # 0: object, part, scene
+    # 1: material
+    multi_source_iters = []
+    for idx_source in range(len(training_records)):
+        dataset = TrainDataset(
+            training_records[idx_source], args, batch_per_gpu=args.batch_size_per_gpu)
+        loader_object_part_scene = torchdata.DataLoader(
+            dataset,
+            batch_size=args.num_gpus,  # we have modified data_parallel
+            shuffle=False,  # we do not use this param
+            collate_fn=user_scattered_collate,
+            num_workers=int(args.workers),
+            drop_last=True,
+            pin_memory=True)
+        multi_source_iters.append(iter(loader_object_part_scene))
+
+    # sample from multi source
+    nr_record = [len(records) for records in training_records]
+    sample_prob = np.asarray(nr_record) / np.sum(nr_record)
+    while True:
+        source_idx = np.random.choice(len(training_records), 1, p=sample_prob)[0]
+        yield next(multi_source_iters[source_idx]), source_idx
+
+
 def main(args):
     # Network Builders
     builder = ModelBuilder()
@@ -166,25 +194,10 @@ def main(args):
         segmentation_module = SegmentationModule(
             net_encoder, net_decoder, crit)
 
-    # Dataset and Loader
-    dataset_train = TrainDataset(
-        args.list_train, args, batch_per_gpu=args.batch_size_per_gpu)
-
-    loader_train = torchdata.DataLoader(
-        dataset_train,
-        batch_size=args.num_gpus,  # we have modified data_parallel
-        shuffle=False,  # we do not use this param
-        collate_fn=user_scattered_collate,
-        num_workers=int(args.workers),
-        drop_last=True,
-        pin_memory=True)
-    loader_train_object = DataLoader
-    loader_train_material = Dataloader
-
     print('1 Epoch = {} iters'.format(args.epoch_iters))
 
     # create loader iterator
-    iterator_train = iter(loader_train)
+    iterator_train = create_multi_source_train_data_loader(args=args)
 
     # load nets into gpu
     if args.num_gpus > 1:
