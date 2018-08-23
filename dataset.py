@@ -1,24 +1,46 @@
-import os
 import json
-import torch
-import lib.utils.data as torchdata
+import os
+
 import cv2
-from torchvision import transforms
-from scipy.misc import imread, imresize
 import numpy as np
+import torch
+from scipy.misc import imread, imresize
+from torchvision import transforms
+
+import lib.utils.data as torchdata
+from broden_dataset.joint_dataset import broden_dataset
+
 
 # Round x to the nearest multiple of p and x' >= x
 def round2nearest_multiple(x, p):
     return ((x - 1) // p + 1) * p
 
+
+def decodeRG(im):
+    return (im[:, :, 0] // 10) * 256 + im[:, :, 1]
+
+
+def encodeRG(channel):
+    result = np.zeros(channel.shape + (3,), dtype=np.uint8)
+    result[:, :, 0] = (channel // 256) * 10
+    result[:, :, 1] = channel % 256
+    return result
+
+
+def uint16_imresize(seg, shape):
+    return decodeRG(imresize(encodeRG(seg), shape, interp="nearest"))
+
+
 class TrainDataset(torchdata.Dataset):
-    def __init__(self, odgt, opt, max_sample=-1, batch_per_gpu=1):
+    def __init__(self, records, opt, max_sample=-1, batch_per_gpu=1):
         self.root_dataset = opt.root_dataset
         self.imgSize = opt.imgSize
         self.imgMaxSize = opt.imgMaxSize
         self.random_flip = opt.random_flip
+
         # max down sampling rate of network to avoid rounding during conv or pooling
         self.padding_constant = opt.padding_constant
+
         # down sampling rate of segm labe
         self.segm_downsampling_rate = opt.segm_downsampling_rate
         self.batch_per_gpu = batch_per_gpu
@@ -32,9 +54,9 @@ class TrainDataset(torchdata.Dataset):
         # mean and std
         self.img_transform = transforms.Compose([
             transforms.Normalize(mean=[102.9801, 115.9465, 122.7717], std=[1., 1., 1.])
-            ])
+        ])
 
-        self.list_sample = [json.loads(x.rstrip()) for x in open(odgt, 'r')]
+        self.list_sample = records
 
         self.if_shuffled = False
         if max_sample > 0:
@@ -48,9 +70,9 @@ class TrainDataset(torchdata.Dataset):
             # get a sample record
             this_sample = self.list_sample[self.cur_idx]
             if this_sample['height'] > this_sample['width']:
-                self.batch_record_list[0].append(this_sample) # h > w, go to 1st class
+                self.batch_record_list[0].append(this_sample)  # h > w, go to 1st class
             else:
-                self.batch_record_list[1].append(this_sample) # h <= w, go to 2nd class
+                self.batch_record_list[1].append(this_sample)  # h <= w, go to 2nd class
 
             # update current sample pointer
             self.cur_idx += 1
@@ -88,8 +110,7 @@ class TrainDataset(torchdata.Dataset):
         batch_resized_size = np.zeros((self.batch_per_gpu, 2), np.int32)
         for i in range(self.batch_per_gpu):
             img_height, img_width = batch_records[i]['height'], batch_records[i]['width']
-            this_scale = min(this_short_size / min(img_height, img_width), \
-                    self.imgMaxSize / max(img_height, img_width))
+            this_scale = min(this_short_size / min(img_height, img_width), self.imgMaxSize / max(img_height, img_width))
             img_resized_height, img_resized_width = img_height * this_scale, img_width * this_scale
             batch_resized_size[i, :] = img_resized_height, img_resized_width
         batch_resized_height = np.max(batch_resized_size[:, 0])
@@ -99,62 +120,123 @@ class TrainDataset(torchdata.Dataset):
         batch_resized_height = int(round2nearest_multiple(batch_resized_height, self.padding_constant))
         batch_resized_width = int(round2nearest_multiple(batch_resized_width, self.padding_constant))
 
-        assert self.padding_constant >= self.segm_downsampling_rate,\
-                'padding constant must be equal or large than segm downsamping rate'
-        batch_images = torch.zeros(self.batch_per_gpu, 3, batch_resized_height, batch_resized_width)
-        batch_segms = torch.zeros(self.batch_per_gpu, batch_resized_height // self.segm_downsampling_rate, \
-                                batch_resized_width // self.segm_downsampling_rate).long()
+        assert self.padding_constant >= self.segm_downsampling_rate, \
+            'padding constant must be equal or large than segm downsamping rate'
+
+        batch_images = np.zeros((self.batch_per_gpu, 3, batch_resized_height, batch_resized_width))
+        batch_objs = np.zeros((self.batch_per_gpu,
+                               batch_resized_height // self.segm_downsampling_rate,
+                               batch_resized_width // self.segm_downsampling_rate))
+        batch_valid_obj = np.zeros(self.batch_per_gpu)
+        batch_parts = np.zeros((self.batch_per_gpu, broden_dataset.nr_object_with_part,
+                                batch_resized_height // self.segm_downsampling_rate,
+                                batch_resized_width // self.segm_downsampling_rate))
+        batch_valid_parts = np.zeros((self.batch_per_gpu, broden_dataset.nr_object_with_part))
+        batch_scene_labels = np.zeros(self.batch_per_gpu, dtype=np.int32)
+        batch_material = np.zeros((self.batch_per_gpu,
+                                   batch_resized_height // self.segm_downsampling_rate,
+                                   batch_resized_width // self.segm_downsampling_rate))
+        batch_valid_mat = np.zeros(self.batch_per_gpu)
 
         for i in range(self.batch_per_gpu):
-            this_record = batch_records[i]
 
-            # load image and label
-            image_path = os.path.join(self.root_dataset, this_record['fpath_img'])
-            segm_path = os.path.join(self.root_dataset, this_record['fpath_segm'])
-            img = imread(image_path, mode='RGB')
-            segm = imread(segm_path)
+            data = broden_dataset.resolve_record(batch_records[i])
 
-            assert(img.ndim == 3)
-            assert(segm.ndim == 2)
-            assert(img.shape[0] == segm.shape[0])
-            assert(img.shape[1] == segm.shape[1])
+            img = data['img']
+            index_seg_obj = data["seg_obj"]
+            valid_obj = data["valid_obj"]
+            index_seg_part = data["batch_seg_part"]
+            valid_part = data["valid_part"]
+            scene_label = data["scene_label"]
+            seg_material = data["seg_material"]
+            valid_mat = data["valid_mat"]
 
-            if self.random_flip == True:
+            # scene
+            batch_scene_labels[i] = scene_label
+
+            # random flip img obj part material
+            if self.random_flip:
                 random_flip = np.random.choice([0, 1])
                 if random_flip == 1:
                     img = cv2.flip(img, 1)
-                    segm = cv2.flip(segm, 1)
+                    index_seg_obj = cv2.flip(index_seg_obj, 1)
+                    index_seg_part = np.flip(index_seg_part, 2)
+                    seg_material = cv2.flip(seg_material, 1)
 
-            # note that each sample within a mini batch has different scale param
+            # img
             img = imresize(img, (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='bilinear')
-            segm = imresize(segm, (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='nearest')
+            batch_images[i][:, :img.shape[0], :img.shape[1]] = img.transpose(2, 0, 1)
 
-            # to avoid seg label misalignment
-            segm_rounded_height = round2nearest_multiple(segm.shape[0], self.segm_downsampling_rate)
-            segm_rounded_width = round2nearest_multiple(segm.shape[1], self.segm_downsampling_rate)
-            segm_rounded = np.zeros((segm_rounded_height, segm_rounded_width), dtype='uint8')
-            segm_rounded[:segm.shape[0], :segm.shape[1]] = segm
+            # object and part
+            if valid_obj:
+                batch_valid_obj[i] = valid_obj
+                # object
+                segm = uint16_imresize(index_seg_obj, (batch_resized_size[i, 0], batch_resized_size[i, 1]))
+                segm_rounded_height = round2nearest_multiple(segm.shape[0], self.padding_constant)
+                segm_rounded_width = round2nearest_multiple(segm.shape[1], self.padding_constant)
+                segm_rounded = np.zeros((segm_rounded_height, segm_rounded_width), dtype='uint16')
+                segm_rounded[:segm.shape[0], :segm.shape[1]] = segm
+                segm = uint16_imresize(segm_rounded,
+                                       (segm_rounded.shape[0] // self.segm_downsampling_rate,
+                                        segm_rounded.shape[1] // self.segm_downsampling_rate))
+                batch_objs[i][:segm.shape[0], :segm.shape[1]] = segm
+                # part
+                if np.sum(valid_part) == 0:
+                    continue
+                    # assume part shape == segm shape
+                parts_resized = []
+                for j in range(broden_dataset.nr_object_with_part):
+                    # NOTE: must cast to uint8 before imresize,
+                    parts_resized.append(imresize(index_seg_part[j],
+                                                  (batch_resized_size[i, 0], batch_resized_size[i, 1]),
+                                                  interp='nearest'))
+                for j in range(broden_dataset.nr_object_with_part):
+                    if not valid_part[j]:
+                        continue
+                    part_rounded = np.zeros((segm_rounded_height, segm_rounded_width), dtype='uint8')
+                    part_rounded[:parts_resized[j].shape[0], :parts_resized[j].shape[1]] = parts_resized[j]
+                    part = imresize(part_rounded,
+                                    (part_rounded.shape[0] // self.segm_downsampling_rate,
+                                     part_rounded.shape[1] // self.segm_downsampling_rate),
+                                    interp='nearest')
+                    batch_parts[i][j][:part.shape[0], :part.shape[1]] = part
+                    # NOTE: part seg might disappear after resize.
+                    if len(np.unique(part)) > 1:
+                        batch_valid_parts[i][j] = 1
+            # material
+            if valid_mat:
+                batch_valid_mat[i] = valid_mat
+                segm = imresize(seg_material,
+                                (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='nearest')
+                segm_rounded_height = round2nearest_multiple(segm.shape[0], self.padding_constant)
+                segm_rounded_width = round2nearest_multiple(segm.shape[1], self.padding_constant)
+                segm_rounded = np.zeros((segm_rounded_height, segm_rounded_width), dtype='uint8')
+                segm_rounded[:segm.shape[0], :segm.shape[1]] = segm
+                segm = imresize(segm_rounded,
+                                (segm_rounded.shape[0] // self.segm_downsampling_rate,
+                                 segm_rounded.shape[1] // self.segm_downsampling_rate), interp='nearest')
+                batch_material[i][:segm.shape[0], :segm.shape[1]] = segm
 
-            segm = imresize(segm_rounded, (segm_rounded.shape[0] // self.segm_downsampling_rate, \
-                                           segm_rounded.shape[1] // self.segm_downsampling_rate), \
-                            interp='nearest')
-             # image to float
-            img = img.astype(np.float32)[:, :, ::-1] # RGB to BGR!!!
-            img = img.transpose((2, 0, 1))
-            img = self.img_transform(torch.from_numpy(img.copy()))
+        # use compressed part segm
+        batch_parts = np.sum(batch_parts, axis=1)
 
-            batch_images[i][:, :img.shape[1], :img.shape[2]] = img
-            batch_segms[i][:segm.shape[0], :segm.shape[1]] = torch.from_numpy(segm.astype(np.int)).long()
+        output = dict(
+            img=batch_images,
+            seg_obj=batch_objs,
+            valid_objs=batch_valid_obj,
+            seg_parts=batch_parts,
+            valid_parts=batch_valid_parts,
+            scene_label=batch_scene_labels,
+            seg_material=batch_material,
+            valid_mat=batch_valid_mat)
 
-        batch_segms = batch_segms - 1 # label from -1 to 149
-        output = dict()
-        output['img_data'] = batch_images
-        output['seg_label'] = batch_segms
+        print("type(output): {}".format(type(output)))
+
         return output
 
     def __len__(self):
-        return int(1e6) # It's a fake length due to the trick that every loader maintains its own list
-        #return self.num_sampleclass
+        return int(1e6)  # It's a fake length due to the trick that every loader maintains its own list
+        # return self.num_sampleclass
 
 
 class ValDataset(torchdata.Dataset):
@@ -168,14 +250,14 @@ class ValDataset(torchdata.Dataset):
         # mean and std
         self.img_transform = transforms.Compose([
             transforms.Normalize(mean=[102.9801, 115.9465, 122.7717], std=[1., 1., 1.])
-            ])
+        ])
 
         self.list_sample = [json.loads(x.rstrip()) for x in open(odgt, 'r')]
 
         if max_sample > 0:
             self.list_sample = self.list_sample[0:max_sample]
 
-        if start_idx >= 0 and end_idx >= 0: # divide file list
+        if start_idx >= 0 and end_idx >= 0:  # divide file list
             self.list_sample = self.list_sample[start_idx:end_idx]
 
         self.num_sample = len(self.list_sample)
@@ -188,7 +270,7 @@ class ValDataset(torchdata.Dataset):
         image_path = os.path.join(self.root_dataset, this_record['fpath_img'])
         segm_path = os.path.join(self.root_dataset, this_record['fpath_segm'])
         img = imread(image_path, mode='RGB')
-        img = img[:, :, ::-1] # BGR to RGB!!!
+        img = img[:, :, ::-1]  # BGR to RGB!!!
         segm = imread(segm_path)
 
         ori_height, ori_width, _ = img.shape
@@ -197,7 +279,7 @@ class ValDataset(torchdata.Dataset):
         for this_short_size in self.imgSize:
             # calculate target height and width
             scale = min(this_short_size / float(min(ori_height, ori_width)),
-                    self.imgMaxSize / float(max(ori_height, ori_width)))
+                        self.imgMaxSize / float(max(ori_height, ori_width)))
             target_height, target_width = int(ori_height * scale), int(ori_width * scale)
 
             # to avoid rounding in network
@@ -219,7 +301,7 @@ class ValDataset(torchdata.Dataset):
 
         batch_segms = torch.unsqueeze(segm, 0)
 
-        batch_segms = batch_segms - 1 # label from -1 to 149
+        batch_segms = batch_segms - 1  # label from -1 to 149
         output = dict()
         output['img_ori'] = img.copy()
         output['img_data'] = [x.contiguous() for x in img_resized_list]
@@ -243,7 +325,7 @@ class TestDataset(torchdata.Dataset):
         # mean and std
         self.img_transform = transforms.Compose([
             transforms.Normalize(mean=[102.9801, 115.9465, 122.7717], std=[1., 1., 1.])
-            ])
+        ])
 
         if isinstance(odgt, list):
             self.list_sample = odgt
@@ -261,7 +343,7 @@ class TestDataset(torchdata.Dataset):
         # load image and label
         image_path = this_record['fpath_img']
         img = imread(image_path, mode='RGB')
-        img = img[:, :, ::-1] # BGR to RGB!!!
+        img = img[:, :, ::-1]  # BGR to RGB!!!
 
         ori_height, ori_width, _ = img.shape
 
@@ -269,7 +351,7 @@ class TestDataset(torchdata.Dataset):
         for this_short_size in self.imgSize:
             # calculate target height and width
             scale = min(this_short_size / float(min(ori_height, ori_width)),
-                    self.imgMaxSize / float(max(ori_height, ori_width)))
+                        self.imgMaxSize / float(max(ori_height, ori_width)))
             target_height, target_width = int(ori_height * scale), int(ori_width * scale)
 
             # to avoid rounding in network

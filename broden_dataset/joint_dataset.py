@@ -123,6 +123,7 @@ class BrodenDataset:
         img = ds.image_data(record["file_index"])
         seg_obj = numpy.zeros((img.shape[0], img.shape[1]), dtype=numpy.uint16)
         valid_obj = 0
+        # TODO(LYC):: use compressed batch seg part
         batch_seg_part = numpy.zeros((self.nr_object_with_part, img.shape[0], img.shape[1]), dtype=numpy.uint8)
         valid_part = numpy.zeros(self.nr_object_with_part, dtype=numpy.bool)
         scene_label = -1
@@ -143,8 +144,20 @@ class BrodenDataset:
             # part
             seg_part = full_seg["part"]
             if len(seg_part) == 0:
-                return img, seg_obj, valid_obj, batch_seg_part, valid_part, scene_label, \
-                        texture_label, seg_material, valid_mat 
+
+                data = {
+                    "img": img,
+                    "seg_obj": seg_obj,
+                    "valid_obj": valid_obj,
+                    "batch_seg_part": batch_seg_part,
+                    "valid_part": valid_part,
+                    "scene_label": scene_label,
+                    "texture_label": texture_label,
+                    "seg_material": seg_material,
+                    "valid_mat": valid_mat
+                }
+
+                return data
 
             # only use first level part seg in ade20k
             if len(seg_part) != 0 and record["dataset"] == "ade20k":
