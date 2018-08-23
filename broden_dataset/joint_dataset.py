@@ -18,139 +18,85 @@ import broden_dataset.pascalseg
 from config import config
 
 
-# TODO(LYC):: remove this hooker 
-def hooker(path):
-    # target_path = path.replace("dataset", "dataset_toy")
-    # dir_name = os.path.dirname(target_path)
-    # if not os.path.exists(dir_name):
-    #     os.makedirs(dir_name)
-    # shutil.copyfile(path, target_path)
-    # print("{} \n -> {}".format(path, target_path))
-    return path 
-
-
-class JointDataset:
+class BrodenDataset:
 
     def __init__(self, test_limit=None):
-        # try merge multi-datsets, modified from netdissect joinseg.py unify()
-        # directory = config.broden_dir 
 
-        # Initiate merging datasets
-        merge_dataset_tag = "broden_v5"
-        if test_limit:
-            merge_dataset_tag += "_{}".format(test_limit)
+        """ data sets """
 
-        """ Initilize joint dataset cache """
         # Dataset 1:    ADE20K. object, part, scene. 
         #               use resized data, use 1 level of the part seg. 
         ade = broden_dataset.adeseg.AdeSegmentation(
                 directory=config.ade_dir, 
-                version='ADE20K_2016_07_26') 
+                version='ADE20K_2016_07_26')
+
         # Dataset 2:    Pascal context, Pascal part. object, part.
         #               collapse objectives, remove distinction between upper-arm, lower-arm, etc.
         pascal = broden_dataset.pascalseg.PascalSegmentation(
                 directory=config.pascal_dir,
                 collapse_adjectives=set(['left', 'right', 'front', 'back', 'upper', 'lower', 'side']))
+
         # Dataset 3:    dtd. texture.
         # dtd = broden_dataset.dtdseg.DtdSegmentation(directory=config.dtd_dir)
+
         # Dataset 4:    opensurface. material.
         #               use resized blank removed version. 
         opensurface = broden_dataset.osseg.OpenSurfaceSegmentation(directory=config.os_dir)
-        
-        """ recover child datasets """
-        # self.data_sets = OrderedDict(ade20k=ade, pascal=pascal, dtd=dtd, os=opensurface)
+
         self.data_sets = OrderedDict(ade20k=ade, pascal=pascal, os=opensurface)
-        print("data_sets: {}".format(list(self.data_sets.keys())))
 
         """ use multi source dataset """
-        lite_dir = os.path.join(config.merged_data_info_dir, 'broden_lite') 
-        self.lite_dir = lite_dir 
-        # split datasets to 2 source. 
-        self.names_data_source = [['ade20k', 'pascal'], ['os']]
-        # self.names_data_source = [['ade20k', 'pascal'], ['dtd']]
-        self.nr_data_source = len(self.names_data_source) 
-        record_ms = self.training_records_split_ds()
-        nr_record_ms = numpy.asarray([len(l) for l in record_ms], dtype=numpy.float32)
-        self.prob_data_source = nr_record_ms / numpy.sum(nr_record_ms) 
-        print("names_data_source: {}".format(self.names_data_source))
-        print("prob_data_source: {}".format(self.prob_data_source))
+        self.broden_dataset_info = os.path.join(config.merged_data_info_dir, 'broden_lite')
+        # FIXIT(LYC):: pascal json nr part is wrong.
+        # TODO(LYC):: restore complete json
+        # TODO(LYC):: add validation record list
+        self.record_list = {"train": [], "validation": []}
+        self.record_list['train'].append(get_records(
+            os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train_toy.json")))
+        self.record_list['train'].append(get_records(
+            os.path.join(self.broden_dataset_info, 'broden_os_train_toy.json')))
 
         """ recover object, part, scene, material and texture. """
-        def restore_csv(csv_path):
-            with open(csv_path) as f:
-                f_csv = csv.reader(f)
-                headings = next(f_csv)
-                Row = namedtuple('Row', headings)
-                lines = [Row(*r) for r in f_csv]
-            return lines 
+
         # recover names 
         self.names = {'object': [], 'part': [], 'scene': [], 'material': [], 'texture': []}
         restore_categories = ['object', 'part', 'scene', 'material', 'texture']
         for cat in restore_categories:
-            self.names[cat] = [l.name for l in \
-                    restore_csv(os.path.join(lite_dir, '{}.csv'.format(cat)))]
-        self.names_object = self.names['object']
-        self.names_part = self.names['part']
-        self.names_scene = self.names['scene']
-        self.names_texture = self.names['texture']
-        self.names_material = self.names['material']
+            self.names[cat] = [
+                l.name for l in restore_csv(os.path.join(self.broden_dataset_info, '{}.csv'.format(cat)))]
         self.nr = {}
         for cat in restore_categories:
             self.nr[cat] = len(self.names[cat])
-        self.nr_object = self.nr['object']
-        self.nr_part = self.nr['part']
-        self.nr_scene = self.nr['scene']
-        self.nr_texture = self.nr['texture']
-        self.nr_material = self.nr['material']
+
         # recover assignments 
         self.assignments = {}
-        for l in restore_csv(os.path.join(lite_dir, 'label_assignment.csv')):
+        for l in restore_csv(os.path.join(self.broden_dataset_info, 'label_assignment.csv')):
             self.assignments[(l.dataset, l.category, int(l.raw_label))] = int(l.broden_label) 
         index_max = build_histogram(
                 [((ds, cat), i) for ds, cat, i in list(self.assignments.keys())], max)
-        self.index_mapping = dict([k, numpy.zeros(i + 1, dtype=numpy.int16)]
-                for k, i in list(index_max.items()))
-        for (ds, cat, oldindex), newindex in list(self.assignments.items()):
-            self.index_mapping[(ds, cat)][oldindex] = newindex  
+        self.index_mapping = dict([k, numpy.zeros(i + 1, dtype=numpy.int16)] for k, i in list(index_max.items()))
+        for (ds, cat, old_index), new_index in list(self.assignments.items()):
+            self.index_mapping[(ds, cat)][old_index] = new_index
+
         # recover object with part 
         self.object_with_part, self.object_part = [], {}
-        for l in restore_csv(os.path.join(lite_dir, 'object_part_hierarchy.csv')):
+        for l in restore_csv(os.path.join(self.broden_dataset_info, 'object_part_hierarchy.csv')):
             o_l = int(l.object_label)
             self.object_with_part.append(o_l)
             self.object_part[o_l] = [int(i) for i in l.part_labels.split(';')]
-        self.nr_object_with_part = len(self.object_with_part) 
-
-    def training_records_split_ds(self):
-        records = [[] for i in self.names_data_source]
-        assert self.names_data_source[0][0] == 'ade20k' and \
-                self.names_data_source[0][1] == 'pascal'
-        # TODO(LYC):: restore complete json 
-        path = os.path.join(self.lite_dir, "broden_ade20k_pascal_train_toy.json")
-        print("path: {}".format(path))
-        with open(path) as f:
-            filelist_json = f.readlines()
-        records[0] = [json.loads(x) for x in filelist_json]
-        # FIXIT(LYC):: pascal json nr part is wrong.
-        assert self.names_data_source[1][0] == 'os'
-        # TODO(LYC):: restore complete json 
-        path = os.path.join(self.lite_dir, 'broden_os_train_toy.json')
-        with open(path) as f:
-            filelist_json = f.readlines()
-        records[1] = [json.loads(x) for x in filelist_json] 
-        # assert self.names_data_source[2][0] == 'dtd'
-        # records[2] = self.data_sets['dtd'].training_records() 
-        return records 
+        self.nr_object_with_part = len(self.object_with_part)
         
     def validation_records(self):
+        raise NotImplementedError
         records = []
         assert self.names_data_source[0][0] == 'ade20k' and \
                 self.names_data_source[0][1] == 'pascal'
-        path = os.path.join(self.lite_dir, "broden_ade20k_pascal_val.json")
+        path = os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_val.json")
         with open(path) as f:
             filelist_json = f.readlines()
         records += [json.loads(x) for x in filelist_json]
         assert self.names_data_source[1][0] == 'os'
-        path = os.path.join(self.lite_dir, 'broden_os_val.json')
+        path = os.path.join(self.broden_dataset_info, 'broden_os_val.json')
         with open(path) as f:
             filelist_json = f.readlines()
         records += [json.loads(x) for x in filelist_json] 
@@ -175,23 +121,12 @@ class JointDataset:
 
         # image 
         img = ds.image_data(record["file_index"])
-
-        # TODO(LYC):: remove this early return
-        return 
-
-        # seg obj
-        # NOTE: cannot be encoded to uint8. 
         seg_obj = numpy.zeros((img.shape[0], img.shape[1]), dtype=numpy.uint16)
         valid_obj = 0
-        # seg part 
-        batch_seg_part = numpy.zeros((self.nr_object_with_part, img.shape[0], img.shape[1]), 
-                dtype=numpy.uint8)
+        batch_seg_part = numpy.zeros((self.nr_object_with_part, img.shape[0], img.shape[1]), dtype=numpy.uint8)
         valid_part = numpy.zeros(self.nr_object_with_part, dtype=numpy.bool)
-        # scene 
         scene_label = -1
-        # texture
         texture_label = -1
-        # material
         seg_material = numpy.zeros((img.shape[0], img.shape[1]), dtype=numpy.uint8)
         valid_mat = 0
 
@@ -249,7 +184,7 @@ class JointDataset:
 
             return data
 
-        # only use texture in dtd. 
+        # only use texture in dtd.
         elif record['dataset'] == 'dtd':
             assert len(full_seg['texture']) == 1, 'use main texture label in dtd'
             texture_label = full_seg['texture'][0]
@@ -302,4 +237,20 @@ def build_histogram(pairs, reducer=operator.add):
     return result
 
 
-joint_dataset = JointDataset(test_limit=None)
+def get_records(path):
+    with open(path) as f:
+        filelist_json = f.readlines()
+    records = [json.loads(x) for x in filelist_json]
+    return records
+
+
+def restore_csv(csv_path):
+    with open(csv_path) as f:
+        f_csv = csv.reader(f)
+        headings = next(f_csv)
+        Row = namedtuple('Row', headings)
+        lines = [Row(*r) for r in f_csv]
+    return lines
+
+
+broden_dataset = BrodenDataset(test_limit=None)

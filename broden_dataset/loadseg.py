@@ -42,7 +42,5 @@ class AbstractSegmentation:
         return data
 
     def image_data(self, i):
-        # TODO(LYC):: remove hooker 
-        from broden_dataset.joint_dataset import hooker
-        return cv2.imread(hooker(self.filename(i)))
+        return cv2.imread(self.filename(i))
 

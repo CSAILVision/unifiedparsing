@@ -1,14 +1,11 @@
 #!/usr/bin/env mdl
-import numpy
 import os
 import re
-from broden_dataset.loadseg import AbstractSegmentation
+
+import numpy
 from scipy.io import loadmat
-from scipy.misc import imread
-from tqdm import tqdm
-import json
-import cv2
-from config import config
+
+from broden_dataset.loadseg import AbstractSegmentation
 
 
 class PascalSegmentation(AbstractSegmentation):
@@ -85,18 +82,15 @@ class PascalSegmentation(AbstractSegmentation):
 
     @classmethod
     def resolve_segmentation(cls, m, categories=None):
-        # TODO(LYC):: remove hooker_cpy 
-        from broden_dataset.joint_dataset import hooker
         directory, partdir, contextdir, part_key, seg_fn = m
         result = {}
         if wants('part', categories):
             objs, parts = load_parts_segmentation(
-                hooker(os.path.join(directory, partdir, 'Annotations_Part', seg_fn)),
+                os.path.join(directory, partdir, 'Annotations_Part', seg_fn),
                 part_key)  # (ignore object layer the from parts segmentation)
             result['part'] = parts
         if wants('object', categories):
-            result['object'] = loadmat(hooker(os.path.join( \
-                directory, contextdir, 'trainval', seg_fn)))['LabelMap']
+            result['object'] = loadmat(os.path.join(directory, contextdir, 'trainval', seg_fn))['LabelMap']
         arrs = [a for a in list(result.values()) if len(numpy.shape(a)) >= 2]
         shape = arrs[0].shape[-2:] if arrs else (1, 1)
         return result, shape

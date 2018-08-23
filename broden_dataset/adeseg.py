@@ -136,9 +136,7 @@ def load_segmentation(m):
     """Returns the nth dataset segmentation as a numpy array,
     where each entry at a pixel is an object class value.
     """
-    # TODO(LYC):: remove hooker  
-    from broden_dataset.joint_dataset import hooker
-    data = imread(hooker(m['seg_filename']))
+    data = imread(m['seg_filename'])
     return decodeClassMask(data)
 
 
@@ -146,11 +144,9 @@ def load_parts(m):
     """Returns an list of part segmentations for the nth dataset item,
     with one array for each level available.
     """
-    # TODO(LYC):: remove hooker 
-    from broden_dataset.joint_dataset import hooker
     result = []
     for fn in m['part_filenames']:
-        data = imread(hooker(fn))
+        data = imread(fn)
         result.append(decodeClassMask(data))
     if not result:
         return []
