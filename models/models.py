@@ -253,26 +253,26 @@ class UPerNet(nn.Module):
 
         # input: PPM out, input_dim: fpn_dim
         self.scene_head = nn.Sequential(
-            conv3x3_bn_relu(fpn_dim, fpn_dim, 3),
+            conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(fpn_dim, self.nr_scene_class, kernel_size=1, bias=True)
         )
 
         # input: Fusion out, input_dim: fpn_dim
         self.object_head = nn.Sequential(
-            conv3x3_bn_relu(fpn_dim, fpn_dim, 3),
+            conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
             nn.Conv2d(fpn_dim, self.nr_object_class, kernel_size=1, bias=True)
         )
 
         # input: Fusion out, input_dim: fpn_dim
         self.part_head = nn.Sequential(
-            conv3x3_bn_relu(fpn_dim, fpn_dim, 3),
+            conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
             nn.Conv2d(fpn_dim, self.nr_part_class, kernel_size=1, bias=True)
         )
 
         # input: FPN_2 (P2), input_dim: fpn_dim
         self.material_head = nn.Sequential(
-            conv3x3_bn_relu(fpn_dim, fpn_dim, 3),
+            conv3x3_bn_relu(fpn_dim, fpn_dim, 1),
             nn.Conv2d(fpn_dim, self.nr_material_class, kernel_size=1, bias=True)
         )
 
@@ -320,7 +320,6 @@ class UPerNet(nn.Module):
                         output_size,
                         mode='bilinear', align_corners=False))
                 fusion_out = torch.cat(fusion_list, 1)
-                print("fusion out shape: {}".format(fusion_out.shape))
                 x = self.conv_fusion(fusion_out)
 
                 if out_object: # object
