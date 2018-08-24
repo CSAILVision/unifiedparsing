@@ -19,41 +19,58 @@ class SegmentationModuleBase(nn.Module):
         return acc
 
     @staticmethod
+    def seg_loss(pred, label, crit):  # object, material loss
+        return crit(pred, label)
+
+    @staticmethod
     def part_loss(pred, part_label, object_label):
+        pass
 
 
 class SegmentationModule(SegmentationModuleBase):
-    def __init__(self, net_enc, net_dec, crit, loss_scale=[None, None, None, None]):
+    def __init__(self, net_enc, net_dec, loss_scale=(None, None, None, None)):
         super(SegmentationModule, self).__init__()
         self.encoder = net_enc
         self.decoder = net_dec
-        self.crit_list = nn.ModuleList()
+        self.crit_dict = nn.ModuleDict()
         self.loss_scale = loss_scale
 
-        # scene crit
-        self.crit_list.append(nn.NLLLoss(ignore_index=-1))
-        # object crit
-        self.crit_list.append(nn.NLLLoss(ignore_index=-1))
-        # part crit
+        # criterion
+        # TODO(LYC):: add part, scene criterion
+        self.crit_dict["object"] = nn.NLLLoss(ignore_index=0)  # ignore background 0
+        self.crit_dict["material"] = nn.NLLLoss(ignore_index=0)  # ignore background 0
 
-
-    def forward(self, feed_dict, output_switch, *, segSize=None):
+    def forward(self, feed_dict, *, segSize=None):
         if segSize is None: # training
+            print("img.shape:{}".format(feed_dict['img'].shape))
             pred_list = self.decoder(
-                self.encoder(feed_dict['img_data'], return_feature_maps=True),
-                output_switch
+                self.encoder(feed_dict['img'], return_feature_maps=True),
+                # output_switch=(True, False, False, False)  # TODO(LYC):: restore output_switch
             )
 
+            print("pred_list:")
+            for out in pred_list:
+                print(out.shape)
 
-            if pred_list[i] is not None:
-                loss += sub_loss
+            # multi task loss
+            # TODO(LYC):: add part, scene
+            # TODO(LYC):: check loss shape, apply mean.
             loss = 0
-            loss += part_loss
+            if pred_list[0] is not None:  # object
+                print("seg_object: {}".format(feed_dict['seg_object'].shape))
+                loss += self.seg_loss(pred_list[1], feed_dict['seg_object'],
+                                      self.crit_dict['object']) * self.loss_scale[0]
+            if pred_list[1] is not None:  # part
+                pass
+            if pred_list[2] is not None:  # scene
+                pass
+            if pred_list[3] is not None:  # material
+                pass
 
-            loss = self.crit(pred, feed_dict['seg_label'])
+            # metric
+            # TODO(LYC):: add metric for other
+            acc = self.pixel_acc(pred_list[0], feed_dict['seg_object'])
 
-
-            acc = self.pixel_acc(pred, feed_dict['seg_label'])
             return loss, acc
         else: # inference
             pred_list = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True), segSize=segSize)
@@ -124,18 +141,18 @@ class ModelBuilder:
                 torch.load(weights, map_location=lambda storage, loc: storage), strict=False)
         return net_encoder
 
-    def build_decoder(self, arch='ppm_bilinear_deepsup',
-                      fc_dim=512, num_class=150,
+    def build_decoder(self, nr_classes,
+                      arch='ppm_bilinear_deepsup', fc_dim=512,
                       weights='', use_softmax=False):
         if arch == 'upernet_lite':
             net_decoder = UPerNet(
-                num_class=num_class,
+                nr_classes=nr_classes,
                 fc_dim=fc_dim,
                 use_softmax=use_softmax,
                 fpn_dim=256)
         elif arch == 'upernet':
             net_decoder = UPerNet(
-                num_class=num_class,
+                nr_classes=nr_classes,
                 fc_dim=fc_dim,
                 use_softmax=use_softmax,
                 fpn_dim=512)
@@ -190,7 +207,7 @@ class Resnet(nn.Module):
 
 # upernet
 class UPerNet(nn.Module):
-    def __init__(self, nr_classes=(0, 0, 0, 0), fc_dim=4096,
+    def __init__(self, nr_classes, fc_dim=4096,
                  use_softmax=False, pool_scales=(1, 2, 3, 6),
                  fpn_inplanes=(256,512,1024,2048), fpn_dim=256):
         super(UPerNet, self).__init__()
@@ -230,7 +247,9 @@ class UPerNet(nn.Module):
 
         self.conv_fusion = conv3x3_bn_relu(len(fpn_inplanes) * fpn_dim, fpn_dim, 1)
 
-        self.nr_scene_class, self.nr_object_class, self.nr_part_class, self.nr_material_class = nr_classes
+        # background included. if ignore in loss, output channel 0 will not be trained.
+        self.nr_scene_class, self.nr_object_class, self.nr_part_class, self.nr_material_class = \
+            nr_classes['scene'], nr_classes['object'], nr_classes['part'], nr_classes['material']
 
         # input: PPM out, input_dim: fpn_dim
         self.scene_head = nn.Sequential(
@@ -301,6 +320,7 @@ class UPerNet(nn.Module):
                         output_size,
                         mode='bilinear', align_corners=False))
                 fusion_out = torch.cat(fusion_list, 1)
+                print("fusion out shape: {}".format(fusion_out.shape))
                 x = self.conv_fusion(fusion_out)
 
                 if out_object: # object
@@ -327,8 +347,10 @@ class UPerNet(nn.Module):
                     continue
                 x = output_list[i]
                 x = nn.functional.log_softmax(x, dim=1)
-                if i == 0: # for scene
-                    x = x.squeeze([2, 3])
+                if i == 0:  # for scene
+                    # x = x.squeeze([2, 3])  # ?
+                    x = x.squeeze(2)
+                    x = x.squeeze(2)
                 output_list[i] = x
 
         return output_list

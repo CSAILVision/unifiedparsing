@@ -166,7 +166,7 @@ class TrainDataset(torchdata.Dataset):
             img = img.astype(np.float32)[:, :, ::-1]  # RGB to BGR!!!
             img = img.transpose((2, 0, 1))
             img = self.img_transform(torch.from_numpy(img.copy()))
-            batch_images[i][:, :img.shape[1], :img.shape[2]] = torch.from_numpy(img.copy())
+            batch_images[i][:, :img.shape[1], :img.shape[2]] = img
 
             # object and part
             if valid_obj:

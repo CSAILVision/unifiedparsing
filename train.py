@@ -32,14 +32,23 @@ def train(segmentation_module, iterator, optimizers, history, epoch, args):
     tic = time.time()
     for i in range(args.epoch_iters):
 
-        batch_data, _ = next(iterator)
+        batch_data, src_idx = next(iterator)
+
         data_time.update(time.time() - tic)
 
         segmentation_module.zero_grad()
 
         # forward pass
         # TODO(LYC):: output switch
-        loss, acc = segmentation_module(batch_data, [False, False])
+        if src_idx == 0:
+            output_switch = (True, True, True, False)  # object part scene
+        elif src_idx == 1:
+            output_switch = (False, False, False, True)  # material
+        else:
+            raise ValueError("Unknown source index.")
+        # TODO(LYC):: restore this line
+        # loss, acc = segmentation_module(batch_data, output_switch=output_switch)
+        loss, acc = segmentation_module(batch_data)
         loss = loss.mean()
         acc = acc.mean()
 
@@ -119,7 +128,7 @@ def group_weight(module):
 
 
 def create_optimizers(nets, args):
-    (net_encoder, net_decoder, crit) = nets
+    (net_encoder, net_decoder) = nets
     optimizer_encoder = torch.optim.SGD(
         group_weight(net_encoder),
         lr=args.lr_encoder,
@@ -182,17 +191,18 @@ def main(args):
     net_decoder = builder.build_decoder(
         arch=args.arch_decoder,
         fc_dim=args.fc_dim,
-        num_class=args.num_class,
+        nr_classes=broden_dataset.nr.copy(),
         weights=args.weights_decoder)
 
-    crit = nn.NLLLoss(ignore_index=-1)
+    # TODO(LYC):: move criterion outside model.
+    # crit = nn.NLLLoss(ignore_index=-1)
 
     if args.arch_decoder.endswith('deepsup'):
         segmentation_module = SegmentationModule(
-            net_encoder, net_decoder, crit, args.deep_sup_scale)
+            net_encoder, net_decoder, args.deep_sup_scale)
     else:
         segmentation_module = SegmentationModule(
-            net_encoder, net_decoder, crit)
+            net_encoder, net_decoder)
 
     print('1 Epoch = {} iters'.format(args.epoch_iters))
 
@@ -209,7 +219,7 @@ def main(args):
     segmentation_module.cuda()
 
     # Set up optimizers
-    nets = (net_encoder, net_decoder, crit)
+    nets = (net_encoder, net_decoder)
     optimizers = create_optimizers(nets, args)
 
     # Main loop
