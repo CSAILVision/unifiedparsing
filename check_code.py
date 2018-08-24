@@ -69,14 +69,14 @@ def expand_transpose_colorencode(label_map):
 
 
 def show_batches(batch_dict, use_imshow=False):
-    batch_img = batch_dict['img']
-    batch_seg_obj = batch_dict['seg_obj']
-    batch_valid_obj = batch_dict['valid_objs']
-    batch_valid_part = batch_dict["valid_parts"]
-    batch_seg_parts = batch_dict["seg_parts"]
-    batch_scene_label = batch_dict['scene_label']
-    batch_material = batch_dict['seg_material']
-    batch_valid_mat = batch_dict['valid_mat']
+    batch_img = batch_dict['img'].numpy()
+    batch_seg_obj = batch_dict['seg_object'].numpy()
+    batch_valid_obj = batch_dict['valid_object'].numpy()
+    batch_valid_part = batch_dict["valid_part"].numpy()
+    batch_seg_parts = batch_dict["seg_part"].numpy()
+    batch_scene_label = batch_dict['scene_label'].numpy()
+    batch_material = batch_dict['seg_material'].numpy()
+    batch_valid_mat = batch_dict['valid_material'].numpy()
     nr_batches = batch_img.shape[0]
 
     for i in range(nr_batches):
@@ -295,7 +295,7 @@ def check_multi_source_dataset():
 
         for idx_gpu in range(args.num_gpus):
             print("gpu idx: {}".format(idx_gpu))
-            show_batches(batch_data[idx_gpu])
+            show_batches(batch_data[idx_gpu], use_imshow=True)
 
 
 if __name__ == "__main__":

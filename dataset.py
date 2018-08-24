@@ -123,20 +123,18 @@ class TrainDataset(torchdata.Dataset):
         assert self.padding_constant >= self.segm_downsampling_rate, \
             'padding constant must be equal or large than segm downsamping rate'
 
-        batch_images = np.zeros((self.batch_per_gpu, 3, batch_resized_height, batch_resized_width))
-        batch_objs = np.zeros((self.batch_per_gpu,
-                               batch_resized_height // self.segm_downsampling_rate,
-                               batch_resized_width // self.segm_downsampling_rate))
-        batch_valid_obj = np.zeros(self.batch_per_gpu)
-        batch_parts = np.zeros((self.batch_per_gpu, broden_dataset.nr_object_with_part,
-                                batch_resized_height // self.segm_downsampling_rate,
-                                batch_resized_width // self.segm_downsampling_rate))
-        batch_valid_parts = np.zeros((self.batch_per_gpu, broden_dataset.nr_object_with_part))
-        batch_scene_labels = np.zeros(self.batch_per_gpu, dtype=np.int32)
-        batch_material = np.zeros((self.batch_per_gpu,
+        batch_images = torch.zeros((self.batch_per_gpu, 3, batch_resized_height, batch_resized_width))
+        batch_objs = torch.zeros((self.batch_per_gpu, batch_resized_height // self.segm_downsampling_rate,
+                                  batch_resized_width // self.segm_downsampling_rate)).long()
+        batch_valid_obj = torch.zeros(self.batch_per_gpu).long()
+        batch_parts = torch.zeros((self.batch_per_gpu, broden_dataset.nr_object_with_part,
                                    batch_resized_height // self.segm_downsampling_rate,
-                                   batch_resized_width // self.segm_downsampling_rate))
-        batch_valid_mat = np.zeros(self.batch_per_gpu)
+                                   batch_resized_width // self.segm_downsampling_rate)).long()
+        batch_valid_parts = torch.zeros((self.batch_per_gpu, broden_dataset.nr_object_with_part)).long()
+        batch_scene_labels = torch.zeros(self.batch_per_gpu).long()
+        batch_material = torch.zeros((self.batch_per_gpu, batch_resized_height // self.segm_downsampling_rate,
+                                      batch_resized_width // self.segm_downsampling_rate)).long()
+        batch_valid_mat = torch.zeros(self.batch_per_gpu).long()
 
         for i in range(self.batch_per_gpu):
 
@@ -152,7 +150,7 @@ class TrainDataset(torchdata.Dataset):
             valid_mat = data["valid_mat"]
 
             # scene
-            batch_scene_labels[i] = scene_label
+            batch_scene_labels[i] = int(scene_label)
 
             # random flip img obj part material
             if self.random_flip:
@@ -165,11 +163,15 @@ class TrainDataset(torchdata.Dataset):
 
             # img
             img = imresize(img, (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='bilinear')
-            batch_images[i][:, :img.shape[0], :img.shape[1]] = img.transpose(2, 0, 1)
+            img = img.astype(np.float32)[:, :, ::-1]  # RGB to BGR!!!
+            img = img.transpose((2, 0, 1))
+            img = self.img_transform(torch.from_numpy(img.copy()))
+            batch_images[i][:, :img.shape[1], :img.shape[2]] = torch.from_numpy(img.copy())
 
             # object and part
             if valid_obj:
                 batch_valid_obj[i] = valid_obj
+
                 # object
                 segm = uint16_imresize(index_seg_obj, (batch_resized_size[i, 0], batch_resized_size[i, 1]))
                 segm_rounded_height = round2nearest_multiple(segm.shape[0], self.padding_constant)
@@ -179,17 +181,16 @@ class TrainDataset(torchdata.Dataset):
                 segm = uint16_imresize(segm_rounded,
                                        (segm_rounded.shape[0] // self.segm_downsampling_rate,
                                         segm_rounded.shape[1] // self.segm_downsampling_rate))
-                batch_objs[i][:segm.shape[0], :segm.shape[1]] = segm
+                batch_objs[i][:segm.shape[0], :segm.shape[1]] = torch.from_numpy(np.array(segm, dtype=np.int32))
+
                 # part
                 if np.sum(valid_part) == 0:
                     continue
-                    # assume part shape == segm shape
+
                 parts_resized = []
                 for j in range(broden_dataset.nr_object_with_part):
-                    # NOTE: must cast to uint8 before imresize,
-                    parts_resized.append(imresize(index_seg_part[j],
-                                                  (batch_resized_size[i, 0], batch_resized_size[i, 1]),
-                                                  interp='nearest'))
+                    parts_resized.append(imresize(
+                        index_seg_part[j], (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='nearest'))
                 for j in range(broden_dataset.nr_object_with_part):
                     if not valid_part[j]:
                         continue
@@ -197,9 +198,8 @@ class TrainDataset(torchdata.Dataset):
                     part_rounded[:parts_resized[j].shape[0], :parts_resized[j].shape[1]] = parts_resized[j]
                     part = imresize(part_rounded,
                                     (part_rounded.shape[0] // self.segm_downsampling_rate,
-                                     part_rounded.shape[1] // self.segm_downsampling_rate),
-                                    interp='nearest')
-                    batch_parts[i][j][:part.shape[0], :part.shape[1]] = part
+                                     part_rounded.shape[1] // self.segm_downsampling_rate), interp='nearest')
+                    batch_parts[i][j][:part.shape[0], :part.shape[1]] = torch.from_numpy(part.copy())
                     # NOTE: part seg might disappear after resize.
                     if len(np.unique(part)) > 1:
                         batch_valid_parts[i][j] = 1
@@ -215,20 +215,24 @@ class TrainDataset(torchdata.Dataset):
                 segm = imresize(segm_rounded,
                                 (segm_rounded.shape[0] // self.segm_downsampling_rate,
                                  segm_rounded.shape[1] // self.segm_downsampling_rate), interp='nearest')
-                batch_material[i][:segm.shape[0], :segm.shape[1]] = segm
+                batch_material[i][:segm.shape[0], :segm.shape[1]] = torch.from_numpy(segm.copy())
 
         # use compressed part segm
-        batch_parts = np.sum(batch_parts, axis=1)
+        # TODO(LYC):: remove compression
+        batch_parts = torch.sum(batch_parts, dim=1)
+
+        # convert numpy array to torch tensor
 
         output = dict(
             img=batch_images,
-            seg_obj=batch_objs,
-            valid_objs=batch_valid_obj,
-            seg_parts=batch_parts,
-            valid_parts=batch_valid_parts,
+            seg_object=batch_objs,
+            valid_object=batch_valid_obj,
+            seg_part=batch_parts,
+            valid_part=batch_valid_parts,
             scene_label=batch_scene_labels,
             seg_material=batch_material,
-            valid_mat=batch_valid_mat)
+            valid_material=batch_valid_mat
+        )
 
         return output
 

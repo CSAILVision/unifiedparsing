@@ -1,5 +1,6 @@
-import cv2
+
 import numpy
+from scipy.misc import imread
 
 
 class AbstractSegmentation:
@@ -42,5 +43,5 @@ class AbstractSegmentation:
         return data
 
     def image_data(self, i):
-        return cv2.imread(self.filename(i))
+        return imread(self.filename(i), mode='RGB')
 
