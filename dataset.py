@@ -32,7 +32,7 @@ def uint16_imresize(seg, shape):
 
 
 class TrainDataset(torchdata.Dataset):
-    def __init__(self, records, opt, max_sample=-1, batch_per_gpu=1):
+    def __init__(self, records, source_idx, opt, max_sample=-1, batch_per_gpu=1):
         self.root_dataset = opt.root_dataset
         self.imgSize = opt.imgSize
         self.imgMaxSize = opt.imgMaxSize
@@ -57,6 +57,7 @@ class TrainDataset(torchdata.Dataset):
         ])
 
         self.list_sample = records
+        self.source_idx = source_idx
 
         self.if_shuffled = False
         if max_sample > 0:
@@ -231,7 +232,8 @@ class TrainDataset(torchdata.Dataset):
             valid_part=batch_valid_parts,
             scene_label=batch_scene_labels,
             seg_material=batch_material,
-            valid_material=batch_valid_mat
+            valid_material=batch_valid_mat,
+            source_idx=torch.tensor(self.source_idx),
         )
 
         return output

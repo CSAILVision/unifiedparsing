@@ -1,8 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 from . import resnet, resnext
 from lib.nn import SynchronizedBatchNorm2d
+
+from broden_dataset.joint_dataset import broden_dataset
 
 
 class SegmentationModuleBase(nn.Module):
@@ -10,71 +13,95 @@ class SegmentationModuleBase(nn.Module):
         super(SegmentationModuleBase, self).__init__()
 
     @staticmethod
-    def pixel_acc(pred, label):
+    def pixel_acc(pred, label, ignore_index=-1):
         _, preds = torch.max(pred, dim=1)
-        valid = (label >= 0).long()
+        valid = (label > ignore_index).long()
         acc_sum = torch.sum(valid * (preds == label).long())
         pixel_sum = torch.sum(valid)
         acc = acc_sum.float() / (pixel_sum.float() + 1e-10)
         return acc
 
     @staticmethod
-    def seg_loss(pred, label, crit):  # object, material loss
-        return crit(pred, label)
-
-    @staticmethod
-    def part_loss(pred, part_label, object_label):
-        pass
+    def part_loss(pred_part, gt_seg_part, gt_seg_object, object_label, valid):
+        mask_object = (gt_seg_object == object_label)
+        loss = F.nll_loss(pred_part, gt_seg_part * mask_object.long(), reduction='none')
+        loss = loss * mask_object.float()
+        loss = torch.sum(loss.view(loss.size()[0], -1), dim=1)
+        nr_pixel = torch.sum(mask_object.view(mask_object.shape[0], -1), dim=1)
+        sum_pixel = (nr_pixel * valid).sum()
+        loss = (loss * valid.float()).sum() / torch.clamp(sum_pixel, 1).float()
+        return loss
 
 
 class SegmentationModule(SegmentationModuleBase):
-    def __init__(self, net_enc, net_dec, loss_scale=(None, None, None, None)):
+    def __init__(self, net_enc, net_dec, loss_scale=None):
         super(SegmentationModule, self).__init__()
         self.encoder = net_enc
         self.decoder = net_dec
         self.crit_dict = nn.ModuleDict()
-        self.loss_scale = loss_scale
+        if loss_scale is None:
+            self.loss_scale = {"object": 1, "part": 0.5, "scene": 0.25, "material": 1}
+        else:
+            self.loss_scale = loss_scale
 
         # criterion
         # TODO(LYC):: add part, scene criterion
         self.crit_dict["object"] = nn.NLLLoss(ignore_index=0)  # ignore background 0
         self.crit_dict["material"] = nn.NLLLoss(ignore_index=0)  # ignore background 0
+        self.crit_dict["scene"] = nn.NLLLoss(ignore_index=-1)  # ignore unlabelled -1
 
     def forward(self, feed_dict, *, segSize=None):
         if segSize is None: # training
-            print("img.shape:{}".format(feed_dict['img'].shape))
-            pred_list = self.decoder(
+
+            if feed_dict['source_idx'] == 0:
+                output_switch = {"object": True, "part": True, "scene": True, "material": False}
+            elif feed_dict['source_idx'] == 1:
+                output_switch = {"object": False, "part": False, "scene": False, "material": True}
+            else:
+                raise ValueError
+
+            pred = self.decoder(
                 self.encoder(feed_dict['img'], return_feature_maps=True),
-                # output_switch=(True, False, False, False)  # TODO(LYC):: restore output_switch
+                output_switch=output_switch
             )
 
-            print("pred_list:")
-            for out in pred_list:
-                print(out.shape)
-
             # multi task loss
-            # TODO(LYC):: add part, scene
-            # TODO(LYC):: check loss shape, apply mean.
+            loss_dict = {}
+            if pred['object'] is not None:  # object
+                loss_dict['object'] = self.crit_dict['object'](pred['object'], feed_dict['seg_object'])
+            if pred['part'] is not None:  # part
+                part_loss, head = 0, 0
+                for idx_part in range(broden_dataset.nr_object_with_part):
+                    object_label = broden_dataset.object_with_part[idx_part]
+                    n_part = len(broden_dataset.object_part[object_label])
+                    part_loss += self.part_loss(
+                        pred['part'][:, head:head + n_part], feed_dict['seg_part'],
+                        feed_dict['seg_object'], object_label, feed_dict['valid_part'][:, idx_part])
+                    head += n_part
+                loss_dict['part'] = part_loss
+            if pred['scene'] is not None:  # scene
+                loss_dict['scene'] = self.crit_dict['scene'](pred['scene'], feed_dict['scene_label'])
+            if pred['material'] is not None:  # material
+                loss_dict['material'] = self.crit_dict['material'](pred['material'], feed_dict['seg_material'])
+
             loss = 0
-            if pred_list[0] is not None:  # object
-                print("seg_object: {}".format(feed_dict['seg_object'].shape))
-                loss += self.seg_loss(pred_list[1], feed_dict['seg_object'],
-                                      self.crit_dict['object']) * self.loss_scale[0]
-            if pred_list[1] is not None:  # part
-                pass
-            if pred_list[2] is not None:  # scene
-                pass
-            if pred_list[3] is not None:  # material
-                pass
+            for k in loss_dict.keys():
+                loss += loss_dict[k] * self.loss_scale[k]
 
             # metric
-            # TODO(LYC):: add metric for other
-            acc = self.pixel_acc(pred_list[0], feed_dict['seg_object'])
+            # TODO(LYC):: add metric
+            # acc = self.pixel_acc(pred['object'], feed_dict['seg_object'], ignore_index=0)
+            # acc = self.pixel_acc(pred['material'], feed_dict['seg_material'], ignore_index=0)
 
-            return loss, acc
+            ret = {}
+            for k in loss_dict.keys():
+                ret["loss_" + k] = loss_dict[k]
+            ret['loss'] = loss
+
+            return ret
         else: # inference
-            pred_list = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True), segSize=segSize)
-            return pred_list
+            pred = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True), segSize=segSize)
+            return pred
 
 
 def conv3x3(in_planes, out_planes, stride=1, has_bias=False):
@@ -276,9 +303,9 @@ class UPerNet(nn.Module):
             nn.Conv2d(fpn_dim, self.nr_material_class, kernel_size=1, bias=True)
         )
 
-    def forward(self, conv_out, output_switch=(True, True, True, True), segSize=None):
-        out_scene, out_object, out_part, out_material = output_switch # output according task if True
-        output_list = [None, None, None, None]
+    def forward(self, conv_out, output_switch=None, segSize=None):
+
+        output_dict = {k: None for k in output_switch.keys()}
 
         conv5 = conv_out[-1]
         input_size = conv5.size()
@@ -291,10 +318,10 @@ class UPerNet(nn.Module):
         ppm_out = torch.cat(ppm_out, 1)
         f = self.ppm_last_conv(ppm_out)
 
-        if out_scene: # scene
-            output_list[0] = self.scene_head(f)
+        if output_switch['scene']: # scene
+            output_dict['scene'] = self.scene_head(f)
 
-        if out_object or out_part or out_material:
+        if output_switch['object'] or output_switch['part'] or output_switch['material']:
             fpn_feature_list = [f]
             for i in reversed(range(len(conv_out) - 1)):
                 conv_x = conv_out[i]
@@ -308,10 +335,10 @@ class UPerNet(nn.Module):
             fpn_feature_list.reverse() # [P2 - P5]
 
             # material
-            if out_material:
-                output_list[-1] = self.material_head(fpn_feature_list[0])
+            if output_switch['material']:
+                output_dict['material'] = self.material_head(fpn_feature_list[0])
 
-            if out_object or out_part:
+            if output_switch['object'] or output_switch['part']:
                 output_size = fpn_feature_list[0].size()[2:]
                 fusion_list = [fpn_feature_list[0]]
                 for i in range(1, len(fpn_feature_list)):
@@ -322,34 +349,34 @@ class UPerNet(nn.Module):
                 fusion_out = torch.cat(fusion_list, 1)
                 x = self.conv_fusion(fusion_out)
 
-                if out_object: # object
-                    output_list[1] = self.object_head(x)
-                if out_part:
-                    output_list[2] = self.part_head(x)
+                if output_switch['object']: # object
+                    output_dict['object'] = self.object_head(x)
+                if output_switch['part']:
+                    output_dict['part'] = self.part_head(x)
 
         if self.use_softmax:  # is True during inference
             # inference scene prob
-            x = output_list[0]
-            x = x.squeeze([2, 3])
+            x = output_dict['scene']
+            x = x.squeeze(2)
+            x = x.squeeze(2)
             x = nn.functional.softmax(x, dim=1)
-            output_list[0] = x
+            output_dict['scene'] = x
 
-            for i in range(1, 4): # inference object, part, material
-                x = output_list[i]
+            for k in ['object', 'part', 'material']: # inference object, part, material
+                x = output_dict[k]
                 x = nn.functional.upsample(
                     x, size=segSize, mode='bilinear', align_corners=False)
                 x = nn.functional.softmax(x, dim=1)
-                output_list[i] = x
+                output_dict[k] = x
         else:   # Training
-            for i in range(4):
-                if output_list[i] is None:
+            for k in list(output_dict.keys()):
+                if output_dict[k] is None:
                     continue
-                x = output_list[i]
+                x = output_dict[k]
                 x = nn.functional.log_softmax(x, dim=1)
-                if i == 0:  # for scene
-                    # x = x.squeeze([2, 3])  # ?
+                if k == "scene":  # for scene
                     x = x.squeeze(2)
                     x = x.squeeze(2)
-                output_list[i] = x
+                output_dict[k] = x
 
-        return output_list
+        return output_dict
