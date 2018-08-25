@@ -15,7 +15,6 @@ import broden_dataset.adeseg
 import broden_dataset.dtdseg
 import broden_dataset.osseg
 import broden_dataset.pascalseg
-from config import config
 
 
 class BrodenDataset:
@@ -24,29 +23,33 @@ class BrodenDataset:
 
         """ data sets """
 
+        broden_dataset_root = "/afs/csail.mit.edu/u/l/liuyingcheng/code/NetDissect/dataset_toy"
+
         # Dataset 1:    ADE20K. object, part, scene. 
         #               use resized data, use 1 level of the part seg. 
         ade = broden_dataset.adeseg.AdeSegmentation(
-                directory=config.ade_dir, 
+                directory=os.path.join(broden_dataset_root, "ade20k"),
                 version='ADE20K_2016_07_26')
 
         # Dataset 2:    Pascal context, Pascal part. object, part.
         #               collapse objectives, remove distinction between upper-arm, lower-arm, etc.
         pascal = broden_dataset.pascalseg.PascalSegmentation(
-                directory=config.pascal_dir,
+                directory=os.path.join(broden_dataset_root, "pascal"),
                 collapse_adjectives=set(['left', 'right', 'front', 'back', 'upper', 'lower', 'side']))
 
         # Dataset 3:    dtd. texture.
-        # dtd = broden_dataset.dtdseg.DtdSegmentation(directory=config.dtd_dir)
+        # dtd = broden_dataset.dtdseg.DtdSegmentation(
+        #     directory=os.path.join(broden_dataset_root, "dtd", "dtd-r1.0.1"))
 
         # Dataset 4:    opensurface. material.
         #               use resized blank removed version. 
-        opensurface = broden_dataset.osseg.OpenSurfaceSegmentation(directory=config.os_dir)
+        opensurface = broden_dataset.osseg.OpenSurfaceSegmentation(
+            directory=os.path.join(broden_dataset_root, "opensurfaces"))
 
         self.data_sets = OrderedDict(ade20k=ade, pascal=pascal, os=opensurface)
 
         """ use multi source dataset """
-        self.broden_dataset_info = os.path.join(config.merged_data_info_dir, 'broden_lite')
+        self.broden_dataset_info = "./data"
         # FIXIT(LYC):: pascal json nr part is wrong.
         # TODO(LYC):: restore complete json
         # TODO(LYC):: add validation record list

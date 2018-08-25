@@ -5,7 +5,6 @@ import os
 import numpy
 
 from broden_dataset.loadseg import AbstractSegmentation
-from config import config
 
 
 class DtdSegmentation(AbstractSegmentation):
@@ -58,15 +57,13 @@ class DtdSegmentation(AbstractSegmentation):
         return result, shape
 
     def training_records(self):
-        record_path = os.path.join(
-            config.merged_data_info_dir, "broden_lite", "dtd_training_list.json")
+        record_path = os.path.join("./data", "dtd_training_list.json")
         with open(record_path) as f:
             filelist_json = f.readlines()
         return [json.loads(x) for x in filelist_json]
 
     def validation_records(self):
-        record_path = os.path.join(
-            config.merged_data_info_dir, "broden_lite", "dtd_validation_list.json")
+        record_path = os.path.join("./data", "dtd_validation_list.json")
         with open(record_path) as f:
             filelist_json = f.readlines()
         return [json.loads(x) for x in filelist_json]

@@ -13,7 +13,6 @@ from scipy.io import loadmat
 from scipy.misc import imread
 
 from broden_dataset.loadseg import AbstractSegmentation
-from config import config
 
 
 class AdeSegmentation(AbstractSegmentation):
@@ -38,7 +37,8 @@ class AdeSegmentation(AbstractSegmentation):
         self.index = Ade20kIndex(
             **{name: index[name][()] for name in index.dtype.names})
         # Here we use adechallenger scene label instead of ade20k.
-        with open(config.scene_label_path, 'r') as f:
+        # TODO(LYC):: replace this file.
+        with open("./data/scene_categories.txt", 'r') as f:
             lines = f.readlines()
         self.index_scene_adecha = []
         for i, l in enumerate(lines):

@@ -1,0 +1,78 @@
+object_label,object_name,part_labels,part_names
+2,sky,0;82,-;cloud
+5,building,0;5;8;24;35;40;53;59;60;61;84;88;92;93;96;97;107;113;114;122;129;134;142;147,-;window;door;column;roof;balcony;shop window;pane;railing;chimney;metal shutter;shutter;dormer;pipe;entrance;step;dome;balustrade;garage door;fire escape;grille;arcades;wall;terrace
+6,person,0;1;2;3;4;6;7;9;10;11;13;14;15;16;20,-;leg;head;torso;arm;eye;ear;nose;neck;hand;hair;mouth;foot;eyebrow;back
+7,ceiling,0;110,-;beam
+8,table,0;1;8;21;28;31;52;58;64;74;112,-;leg;door;drawer;base;top;apron;side;skirt;front;pedestal
+9,window,0;59;87;94;100;103;118;120;133;135,-;pane;sash;lower sash;upper sash;rail;casing;sill;stile;muntin
+10,road,0;66,-;crosswalk
+12,chair,0;1;4;20;32;33;38;43;52;64;85,-;leg;arm;back;seat;seat cushion;back pillow;seat base;apron;skirt;stretcher
+13,car,0;5;8;12;19;26;30;35;37;39;62;117;146,-;window;door;wheel;headlight;mirror;license plate;roof;taillight;windshield;bumper;gas cap;wiper
+15,painting,0;46,-;frame
+16,door,0;5;41;47;59;70;127;144,-;window;door frame;handle;pane;knob;lock;hinge
+18,light,0;22;75;78;79;102,-;shade;canopy;backplate;aperture;diffusor
+19,cabinet,0;1;8;21;31;58;64;69;74,-;leg;door;drawer;top;side;skirt;shelf;front
+21,lamp,0;4;22;24;28;75;80;89;99;104,-;arm;shade;column;base;canopy;tube;chain;bulb;cord
+28,bed,0;1;27;28;48;58;105;148;151,-;leg;headboard;base;footboard;side;side rail;ladder;bedpost
+29,sofa,0;1;4;20;32;33;38;43;52;64,-;leg;arm;back;seat;seat cushion;back pillow;seat base;apron;skirt
+32,shelf,0;8;31;58,-;door;top;side
+33,bottle,0;25;44,-;body;cap
+39,mirror,0;46,-;frame
+42,sink,0;29;77;95;112,-;faucet;bowl;tap;pedestal
+43,dog,0;1;2;3;6;7;9;10;17;18;23,-;leg;head;torso;eye;ear;nose;neck;tail;muzzle;paw
+44,armchair,0;1;4;20;32;33;38;43;52;64;126,-;leg;arm;back;seat;seat cushion;back pillow;seat base;apron;skirt;earmuffs
+46,wall socket,0;149,-;socket
+47,sconce,0;4;22;78,-;arm;shade;backplate
+48,pillow,0;27,-;headboard
+49,cat,0;1;2;3;6;7;9;10;17;23,-;leg;head;torso;eye;ear;nose;neck;tail;paw
+54,clock,0;83,-;face
+56,column,0;28;137;139,-;base;shaft;capital
+57,bicycle,0;12;49;55;56,-;wheel;handle bar;saddle;chain wheel
+59,coffee table,0;1;31;52;69,-;leg;top;apron;shelf
+61,spotlight,0;22,-;shade
+67,desk,0;1;21;31,-;leg;drawer;top
+68,airplane,0;12;17;25;34;45;54;125;130;132,-;wheel;tail;body;wing;stern;engine;fuselage;stabilizer;landing gear
+69,bird,0;1;2;3;6;10;15;17;34;42,-;leg;head;torso;eye;neck;foot;tail;wing;beak
+70,house,0;5;8;24;35;40;60;61;114,-;window;door;column;roof;balcony;railing;chimney;garage door
+74,television,0;36,-;screen
+75,chandelier,0;4;22;75;89;99,-;arm;shade;canopy;chain;bulb
+77,pottedplant,0;50;51,-;plant;pot
+80,stairway,0;97,-;step
+81,van,0;5;8;12;19;30;37;39,-;window;door;wheel;headlight;license plate;taillight;windshield
+82,stove,0;21;65;72;115;136,-;drawer;button panel;oven;dial;burner
+83,truck,0;12;39,-;wheel;windshield
+85,chest of drawers,0;21;31;58;64;74,-;drawer;top;side;skirt;front
+87,seat,0;20;33,-;back;seat cushion
+89,glass,0;28;77;116;140,-;base;bowl;opening;stem
+91,telephone,0;28;109,-;base;receiver
+95,monitor,0;36,-;screen
+98,stool,0;1;32,-;leg;seat
+104,fan,0;75;90;121,-;canopy;blade;motor
+105,horse,0;1;2;3;6;7;10;17;18;73,-;leg;head;torso;eye;ear;neck;tail;muzzle;hoof
+106,motorbike,0;12;19;49,-;wheel;headlight;handle bar
+108,train,0;2;19;63;119;141,-;head;headlight;coach;head roof;coach roof
+109,bathtub,0;29;95,-;faucet;tap
+110,toilet,0;57;76;77,-;lid;water tank;bowl
+111,refrigerator,0;8,-;door
+113,wardrobe,0;8;21,-;door;drawer
+117,computer,0;67;71;81;86;128,-;keyboard;monitor;mouse;computer case;speaker
+120,bus,0;5;8;12;19;26;30;35,-;window;door;wheel;headlight;mirror;license plate;roof
+122,microwave,0;8;36;65;111,-;door;screen;button panel;button
+127,swivel chair,0;4;20;28;32;131,-;arm;back;base;seat;piston
+131,ottoman,0;1;33;43,-;leg;seat cushion;seat base
+141,sheep,0;1;2;3;6;7;10;17;18;91,-;leg;head;torso;eye;ear;neck;tail;muzzle;horn
+142,cow,0;1;2;3;6;7;10;17;18;91,-;leg;head;torso;eye;ear;neck;tail;muzzle;horn
+143,bookcase,0;69,-;shelf
+145,exhaust hood,0;25;124,-;body;vent
+153,coach,0;5;12;39,-;window;wheel;windshield
+154,dishwasher,0;8;65,-;door;button panel
+160,oven,0;8;65,-;door;button panel
+161,monitoring device,0;36,-;screen
+170,pool table,0;1;28;98;101;103;108;138,-;leg;base;corner pocket;bed;rail;side pocket;cabinet
+180,mug,0;47,-;handle
+184,pitcher,0;47,-;handle
+204,kitchen island,0;8;21,-;door;drawer
+213,buffet,0;8;21,-;door;drawer
+214,kettle,0;47,-;handle
+240,washer,0;8,-;door
+321,lighthouse,0;5,-;window
