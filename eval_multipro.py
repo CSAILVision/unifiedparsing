@@ -13,7 +13,7 @@ from scipy.io import loadmat
 # Our libs
 from dataset import ValDataset
 from models import ModelBuilder, SegmentationModule
-from utils import AverageMeter, colorEncode, accuracy, intersectionAndUnion, parse_devices
+from utils import AverageMeter, colorEncode, accuracy, intersectionAndUnion, parse_devices, intersection_union_part
 from lib.nn import user_scattered_collate, async_copy_to
 from lib.utils import as_numpy, mark_volatile
 import lib.utils.data as torchdata
@@ -42,9 +42,68 @@ def visualize_result(data, preds, args):
                 img_name.replace('.jpg', '.png')), im_vis)
 
 
-def get_metrics(pred, data, args):
-    matric = {}
-    return matric
+def get_metrics(pred, data):
+    metric = {}
+
+    # scene
+    metric['scene'] = {}
+    metric['scene']['gt'] = data['scene_label']
+    if metric['scene']['gt'] != -1:
+        scene_t1 = np.argmax(pred['scene'])
+        metric['scene']['top1'] = (scene_t1 == metric['scene']['gt'])
+
+    # object, part
+    metric['valid_object'] = data['valid_object']
+    if metric['valid_object']:
+
+        # object
+        metric['object'] = {}
+        object_gt, object_pred = data['seg_object'], pred['object']
+
+        metric["object"]["acc"] = ((object_gt == object_pred) * object_gt > 0).sum()  # ignore 0
+        metric["object"]["pixel"] = (object_gt > 0).sum()  # ignore 0
+
+        metric["object"]["inter"], metric["object"]["uni"] = intersectionAndUnion(
+            object_pred, object_gt, broden_dataset.nr['object'] - 1)  # ignore 0
+
+        # parts
+        metric['part'] = []
+        metric["valid_part"] = data["valid_part"]
+        for object_part_idx, object_label in enumerate(broden_dataset.object_with_part):
+
+            if not data['valid_part'][object_part_idx]:
+                metric["part"].append(None)
+                continue
+
+            # NOTE: nr part include background 0.
+            nr_part = len(broden_dataset.object_part[object_label])
+
+            object_pred_mask = (object_pred == object_label)
+            object_gt_mask = (object_gt == object_label)
+            parts_gt = data["seg_part"] * object_gt_mask
+            parts_pred = pred['part'][object_part_idx] * object_pred_mask
+
+            _result = {}
+            _result["acc"] = ((parts_gt == parts_pred) * (parts_gt > 0)).sum()  # ignore 0
+            _result["pixel"] = (parts_gt > 0).sum()  # ignore 0
+            _result["inter"], _result["uni"] = intersection_union_part(
+                parts_pred, parts_gt, nr_part)  # mIoU-bg, include background 0
+
+            metric["part"].append(_result)
+
+    # material
+    metric['valid_material'] = data['valid_material']
+    if metric['valid_material']:
+        metric['material'] = {}
+        material_gt, material_pred = data['seg_material'], pred['material']
+
+        metric["material"]["acc"] = ((material_gt == material_pred) * material_gt > 0).sum()  # ignore 0
+        metric["material"]["pixel"] = (material_gt > 0).sum()  # ignore 0
+
+        metric["material"]["inter"], metric["material"]["uni"] = intersectionAndUnion(
+            material_pred, material_gt, broden_dataset.nr['material'] - 1)  # ignore 0
+
+    return metric
 
 
 def evaluate(segmentation_module, loader, args, dev_id, result_queue):
@@ -83,9 +142,7 @@ def evaluate(segmentation_module, loader, args, dev_id, result_queue):
             pred_ms = as_numpy(pred_ms)
 
         # calculate accuracy and SEND THEM TO MASTER
-        # acc, pix = accuracy(preds, seg_label)
-        # intersection, union = intersectionAndUnion(preds, seg_label, args.num_class)
-        result_queue.put_nowait(get_metrics(pred_ms, data_np, args))
+        result_queue.put_nowait(get_metrics(pred_ms, data_np))
 
         # visualization
         # if args.visualize:
@@ -130,12 +187,64 @@ def worker(args, dev_id, start_idx, end_idx, result_queue):
     evaluate(segmentation_module, loader_val, args, dev_id, result_queue)
 
 
+def get_benchmark_result(result):
+    assert len(result) == len(broden_dataset.record_list['validation'])
+
+    benchmark = {k: {} for k in ['object', 'part', 'scene', 'material']}
+
+    # object
+    object_pixel = sum([item['object']['pixel'] for item in result if item['valid_object']])
+    object_acc = sum([item['object']['acc'] for item in result if item['valid_object']])
+    object_inter = sum([item['object']['inter'] for item in result if item['valid_object']])
+    object_uni = sum([item['object']['uni'] for item in result if item['valid_object']])
+    benchmark['object']['pixel_acc'] = object_acc / float(object_pixel)
+    benchmark['object']['mIoU'] = (object_inter / (object_uni + 1e-8)).mean()
+
+    # part
+    mIoU_part, pixel_acc_part = [], []
+    for object_part_idx, object_label in enumerate(broden_dataset.object_with_part):
+        part_pixel_cnt, part_acc_cnt = 0, 0
+        part_inter_cnt, part_uni_cnt = 0, 0
+        for item in result:
+            if not (item['valid_object'] and item["valid_part"][object_part_idx]):
+                continue
+            part_pixel_cnt += item["part"][object_part_idx]["pixel"]
+            part_acc_cnt += item["part"][object_part_idx]["acc"]
+            part_inter_cnt += item["part"][object_part_idx]["inter"]
+            part_uni_cnt += item["part"][object_part_idx]["uni"]
+
+        # report object not in validations set
+        if part_pixel_cnt == 0:
+            print("{}({}), no valid parts found in val set.".format(
+                object_label, broden_dataset.names['object'][object_label]))
+            continue
+
+        mIoU_part.append((part_inter_cnt / (part_uni_cnt + 1e-8)).mean())
+        pixel_acc_part.append(part_acc_cnt / float(part_pixel_cnt))
+
+    benchmark['part']['pixel_acc'] = np.mean(pixel_acc_part)
+    benchmark['part']['mIoU'] = np.mean(mIoU_part)
+
+    # scene
+    benchmark['scene']['top1'] = np.mean(
+        [item['scene']['top1'] for item in result if item['scene']['gt'] != -1])
+
+    # material
+    material_pixel = sum([item['material']['pixel'] for item in result if item['valid_material']])
+    material_acc = sum([item['material']['acc'] for item in result if item['valid_material']])
+    material_inter = sum([item['material']['inter'] for item in result if item['valid_material']])
+    material_uni = sum([item['material']['uni'] for item in result if item['valid_material']])
+    benchmark['material']['pixel_acc'] = material_acc / float(material_pixel)
+    benchmark['material']['mIoU'] = (material_inter / (material_uni + 1e-8)).mean()
+
+    return benchmark
+
+
 def main(args):
     # Parse device ids
     default_dev, *parallel_dev = parse_devices(args.devices)
     all_devs = parallel_dev + [default_dev]
-    all_devs = [x.replace('gpu', '') for x in all_devs]
-    all_devs = [int(x) for x in all_devs]
+    all_devs = [int(x.replace('gpu', '')) for x in all_devs]
     nr_devs = len(all_devs)
 
     print("nr_dev: {}".format(nr_devs))
@@ -146,10 +255,6 @@ def main(args):
     nr_files_per_dev = math.ceil(nr_files / nr_devs)
 
     pbar = tqdm(total=nr_files)
-
-    acc_meter = AverageMeter()
-    intersection_meter = AverageMeter()
-    union_meter = AverageMeter()
 
     result_queue = Queue(500)
     procs = []
@@ -162,27 +267,21 @@ def main(args):
         procs.append(proc)
 
     # master fetches results
-    processed_counter = 0
+    processed_counter, all_result = 0, []
     while processed_counter < nr_files:
         if result_queue.empty():
             continue
-        result = result_queue.get()
-        # acc_meter.update(acc, pix)
-        # intersection_meter.update(intersection)
-        # union_meter.update(union)
+        all_result.append(result_queue.get())
         processed_counter += 1
         pbar.update(1)
 
     for p in procs:
         p.join()
 
-    iou = intersection_meter.sum / (union_meter.sum + 1e-10)
-    for i, _iou in enumerate(iou):
-        print('class [{}], IoU: {}'.format(i, _iou))
+    benchmark = get_benchmark_result(all_result)
 
     print('[Eval Summary]:')
-    print('Mean IoU: {:.4}, Accuracy: {:.2f}%'
-          .format(iou.mean(), acc_meter.average()*100))
+    print(benchmark)
 
     print('Evaluation Done!')
 

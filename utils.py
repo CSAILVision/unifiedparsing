@@ -128,6 +128,18 @@ def intersectionAndUnion(imPred, imLab, numClass):
     return (area_intersection, area_union)
 
 
+def intersection_union_part(pred, gt, nr_classes):
+    # nr_classes include background 0.
+    # Compute area intersection without 0:
+    (area_intersection, _) = np.histogram(pred * (gt == pred),
+            bins=nr_classes - 1, range=(1, nr_classes - 1))
+    # Compute area union without 0:
+    (area_pred, _) = np.histogram(pred, bins=nr_classes - 1, range=(1, nr_classes - 1))
+    (area_lab, _) = np.histogram(gt, bins=nr_classes - 1, range=(1, nr_classes - 1))
+    area_union = area_pred + area_lab - area_intersection
+    return (area_intersection, area_union)
+
+
 class NotSupportedCliException(Exception):
     pass
 

@@ -301,7 +301,7 @@ class ValDataset(torchdata.Dataset):
 
         # object
         output['seg_object'] = torch.from_numpy(
-            data["seg_obj"]).long().contiguous()
+            data["seg_obj"].astype(np.int32)).long().contiguous()
         output['valid_object'] = torch.tensor(int(data['valid_obj'])).long()
 
         # part
