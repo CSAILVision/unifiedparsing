@@ -1,4 +1,4 @@
-#!/usr/bin/env mdl 
+
 import json
 import os
 

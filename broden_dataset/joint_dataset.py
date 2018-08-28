@@ -1,6 +1,3 @@
-#!/usr/bin/env mdl
-
-""" merge multi-datasets. modified from NetDissect joinseg.py """
 
 import csv
 import json
@@ -19,11 +16,11 @@ import broden_dataset.pascalseg
 
 class BrodenDataset:
 
-    def __init__(self, test_limit=None):
+    def __init__(self):
 
         """ data sets """
 
-        broden_dataset_root = "/afs/csail.mit.edu/u/l/liuyingcheng/code/NetDissect/dataset_toy"
+        broden_dataset_root = "/afs/csail.mit.edu/u/l/liuyingcheng/code/NetDissect/dataset_toy_resized"
 
         # Dataset 1:    ADE20K. object, part, scene. 
         #               use resized data, use 1 level of the part seg. 
@@ -52,12 +49,15 @@ class BrodenDataset:
         self.broden_dataset_info = "./data"
         # FIXIT(LYC):: pascal json nr part is wrong.
         # TODO(LYC):: restore complete json
-        # TODO(LYC):: add validation record list
         self.record_list = {"train": [], "validation": []}
         self.record_list['train'].append(get_records(
             os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train_toy.json")))
         self.record_list['train'].append(get_records(
             os.path.join(self.broden_dataset_info, 'broden_os_train_toy.json')))
+        # NOTE(LYC):: use training data in validation for debugging.
+        self.record_list['validation'] = \
+            get_records(os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train_toy.json")) + \
+            get_records(os.path.join(self.broden_dataset_info, 'broden_os_train_toy.json'))
 
         """ recover object, part, scene, material and texture. """
 
@@ -88,24 +88,6 @@ class BrodenDataset:
             self.object_with_part.append(o_l)
             self.object_part[o_l] = [int(i) for i in l.part_labels.split(';')]
         self.nr_object_with_part = len(self.object_with_part)
-        
-    def validation_records(self):
-        raise NotImplementedError
-        records = []
-        assert self.names_data_source[0][0] == 'ade20k' and \
-                self.names_data_source[0][1] == 'pascal'
-        path = os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_val.json")
-        with open(path) as f:
-            filelist_json = f.readlines()
-        records += [json.loads(x) for x in filelist_json]
-        assert self.names_data_source[1][0] == 'os'
-        path = os.path.join(self.broden_dataset_info, 'broden_os_val.json')
-        with open(path) as f:
-            filelist_json = f.readlines()
-        records += [json.loads(x) for x in filelist_json] 
-        # assert self.names_data_source[2][0] == 'dtd'
-        # records += self.data_sets['dtd'].validation_records() 
-        return records
 
     def resolve_record(self, record):
         # resolve records, return: 
@@ -130,7 +112,6 @@ class BrodenDataset:
         batch_seg_part = numpy.zeros((self.nr_object_with_part, img.shape[0], img.shape[1]), dtype=numpy.uint8)
         valid_part = numpy.zeros(self.nr_object_with_part, dtype=numpy.bool)
         scene_label = -1
-        texture_label = -1
         seg_material = numpy.zeros((img.shape[0], img.shape[1]), dtype=numpy.uint8)
         valid_mat = 0
 
@@ -155,7 +136,6 @@ class BrodenDataset:
                     "batch_seg_part": batch_seg_part,
                     "valid_part": valid_part,
                     "scene_label": scene_label,
-                    "texture_label": texture_label,
                     "seg_material": seg_material,
                     "valid_mat": valid_mat
                 }
@@ -193,7 +173,6 @@ class BrodenDataset:
                 "batch_seg_part": batch_seg_part,
                 "valid_part": valid_part,
                 "scene_label": scene_label,
-                "texture_label": texture_label,
                 "seg_material": seg_material,
                 "valid_mat": valid_mat
             }
@@ -232,7 +211,6 @@ class BrodenDataset:
                 "batch_seg_part": batch_seg_part,
                 "valid_part": valid_part,
                 "scene_label": scene_label,
-                "texture_label": texture_label,
                 "seg_material": seg_material,
                 "valid_mat": valid_mat
             }
@@ -269,4 +247,4 @@ def restore_csv(csv_path):
     return lines
 
 
-broden_dataset = BrodenDataset(test_limit=None)
+broden_dataset = BrodenDataset()

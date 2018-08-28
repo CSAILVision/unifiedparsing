@@ -1,11 +1,7 @@
-#!/usr/bin/env mdl 
-import os
-import signal
-from csv import DictReader
-from functools import partial
-from multiprocessing import Pool, cpu_count
 
-import cv2
+import os
+from csv import DictReader
+
 import numpy
 from scipy.misc import imread
 
@@ -77,83 +73,3 @@ def wants(what, option):
     if option is None:
         return True
     return what in option
-
-
-def generate_resized_os(os_dir):
-    """
-    resize img and material. 
-    all samples are resized, 25352. 
-    """
-    ds = OpenSurfaceSegmentation(directory=os_dir)
-    all_result = map_in_pool(partial(resize_data, verbose=True),
-                             all_dataset_segmentations({"opensurfaces": ds}),
-                             single_process=False,
-                             verbose=True)
-
-
-def resize_data(record, verbose):
-    """
-    resize data in record. 
-    """
-    dataset, file_index, filename, md = record
-    img_path, seg_path = md['filename'], md['seg_filename']
-    if verbose:
-        print("{} {}".format(file_index, os.path.basename(img_path)))
-    # short size maximum 512 as ade challenge
-    # original code seem to have bug 
-    img = cv2.imread(img_path)
-    h, w = img.shape[0], img.shape[1]
-    h_new, w_new = 0, 0
-    max_size = 512
-    if h <= w and h > max_size:
-        h_new, w_new = max_size, round(w / float(h) * max_size)
-    elif w <= h and w > max_size:
-        h_new, w_new = round(h / float(w) * max_size), max_size
-    else:
-        return 0
-    cv2.imwrite(img_path, cv2.resize(img, (w_new, h_new),
-                                     interpolation=cv2.INTER_LINEAR))
-    # resize obj seg 
-    seg = cv2.imread(seg_path)
-    cv2.imwrite(seg_path, cv2.resize(seg, (w_new, h_new),
-                                     interpolation=cv2.INTER_NEAREST))
-    return 0
-
-
-def map_in_pool(fn, data, single_process=False, verbose=False):
-    """
-    Our multiprocessing solution; wrapped to stop on ctrl-C well.
-    """
-    if single_process:
-        return list(map(fn, data))
-    n_procs = min(cpu_count(), 32)
-    original_sigint_handler = setup_sigint()
-    pool = Pool(processes=n_procs, initializer=setup_sigint)
-    restore_sigint(original_sigint_handler)
-    try:
-        if verbose:
-            print('Mapping with %d processes' % n_procs)
-        res = pool.map_async(fn, data)
-        return res.get(31536000)
-    except KeyboardInterrupt:
-        print("Caught KeyboardInterrupt, terminating workers")
-        pool.terminate()
-        raise
-    finally:
-        pool.close()
-        pool.join()
-
-
-def all_dataset_segmentations(data_sets):
-    for name, ds in list(data_sets.items()):
-        for i in list(range(ds.size())):
-            yield (name, i, ds.filename(i), ds.metadata(i))
-
-
-def setup_sigint():
-    return signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-
-def restore_sigint(original):
-    signal.signal(signal.SIGINT, original)
-
