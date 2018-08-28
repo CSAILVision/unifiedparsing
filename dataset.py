@@ -142,9 +142,9 @@ class TrainDataset(torchdata.Dataset):
             data = broden_dataset.resolve_record(batch_records[i])
 
             img = data['img']
-            index_seg_obj = data["seg_obj"]
+            seg_obj = data["seg_obj"]
             valid_obj = data["valid_obj"]
-            index_seg_part = data["batch_seg_part"]
+            seg_part = data["batch_seg_part"]
             valid_part = data["valid_part"]
             scene_label = data["scene_label"]
             seg_material = data["seg_material"]
@@ -158,8 +158,8 @@ class TrainDataset(torchdata.Dataset):
                 random_flip = np.random.choice([0, 1])
                 if random_flip == 1:
                     img = cv2.flip(img, 1)
-                    index_seg_obj = cv2.flip(index_seg_obj, 1)
-                    index_seg_part = np.flip(index_seg_part, 2)
+                    seg_obj = cv2.flip(seg_obj, 1)
+                    seg_part = np.flip(seg_part, 2)
                     seg_material = cv2.flip(seg_material, 1)
 
             # img
@@ -174,7 +174,7 @@ class TrainDataset(torchdata.Dataset):
                 batch_valid_obj[i] = valid_obj
 
                 # object
-                segm = uint16_imresize(index_seg_obj, (batch_resized_size[i, 0], batch_resized_size[i, 1]))
+                segm = uint16_imresize(seg_obj, (batch_resized_size[i, 0], batch_resized_size[i, 1]))
                 segm_rounded_height = round2nearest_multiple(segm.shape[0], self.padding_constant)
                 segm_rounded_width = round2nearest_multiple(segm.shape[1], self.padding_constant)
                 segm_rounded = np.zeros((segm_rounded_height, segm_rounded_width), dtype='uint16')
@@ -191,7 +191,7 @@ class TrainDataset(torchdata.Dataset):
                 parts_resized = []
                 for j in range(broden_dataset.nr_object_with_part):
                     parts_resized.append(imresize(
-                        index_seg_part[j], (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='nearest'))
+                        seg_part[j], (batch_resized_size[i, 0], batch_resized_size[i, 1]), interp='nearest'))
                 for j in range(broden_dataset.nr_object_with_part):
                     if not valid_part[j]:
                         continue
@@ -244,7 +244,7 @@ class TrainDataset(torchdata.Dataset):
 
 
 class ValDataset(torchdata.Dataset):
-    def __init__(self, odgt, opt, max_sample=-1, start_idx=-1, end_idx=-1):
+    def __init__(self, records, opt, max_sample=-1, start_idx=-1, end_idx=-1):
         self.root_dataset = opt.root_dataset
         self.imgSize = opt.imgSize
         self.imgMaxSize = opt.imgMaxSize
@@ -256,7 +256,7 @@ class ValDataset(torchdata.Dataset):
             transforms.Normalize(mean=[102.9801, 115.9465, 122.7717], std=[1., 1., 1.])
         ])
 
-        self.list_sample = [json.loads(x.rstrip()) for x in open(odgt, 'r')]
+        self.list_sample = records
 
         if max_sample > 0:
             self.list_sample = self.list_sample[0:max_sample]
@@ -269,16 +269,13 @@ class ValDataset(torchdata.Dataset):
         print('# samples: {}'.format(self.num_sample))
 
     def __getitem__(self, index):
-        this_record = self.list_sample[index]
-        # load image and label
-        image_path = os.path.join(self.root_dataset, this_record['fpath_img'])
-        segm_path = os.path.join(self.root_dataset, this_record['fpath_segm'])
-        img = imread(image_path, mode='RGB')
+        data = broden_dataset.resolve_record(self.list_sample[index])
+        output = {}
+
+        # image
+        img = data['img']
         img = img[:, :, ::-1]  # BGR to RGB!!!
-        segm = imread(segm_path)
-
         ori_height, ori_width, _ = img.shape
-
         img_resized_list = []
         for this_short_size in self.imgSize:
             # calculate target height and width
@@ -298,19 +295,27 @@ class ValDataset(torchdata.Dataset):
             img_resized = img_resized.transpose((2, 0, 1))
             img_resized = self.img_transform(torch.from_numpy(img_resized))
 
-            img_resized = torch.unsqueeze(img_resized, 0)
             img_resized_list.append(img_resized)
+        output['img_resized_list'] = [x.contiguous() for x in img_resized_list]
+        output['original_img'] = img
 
-        segm = torch.from_numpy(segm.astype(np.int)).long()
+        # object
+        output['seg_object'] = torch.from_numpy(
+            data["seg_obj"]).long().contiguous()
+        output['valid_object'] = torch.tensor(int(data['valid_obj'])).long()
 
-        batch_segms = torch.unsqueeze(segm, 0)
+        # part
+        output['seg_part'] = torch.from_numpy(
+            np.sum(data["batch_seg_part"], axis=0).astype(np.uint8)).long().contiguous()
+        output['valid_part'] = torch.from_numpy(data['valid_part'].astype(np.uint8)).long()
 
-        batch_segms = batch_segms - 1  # label from -1 to 149
-        output = dict()
-        output['img_ori'] = img.copy()
-        output['img_data'] = [x.contiguous() for x in img_resized_list]
-        output['seg_label'] = batch_segms.contiguous()
-        output['info'] = this_record['fpath_img']
+        # scene
+        output['scene_label'] = torch.tensor(int(data['scene_label']))
+
+        # material
+        output['seg_material'] = torch.from_numpy(data['seg_material']).contiguous()
+        output['valid_material'] = torch.tensor(int(data['valid_mat'])).long()
+
         return output
 
     def __len__(self):

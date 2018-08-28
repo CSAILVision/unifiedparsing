@@ -20,6 +20,8 @@ import lib.utils.data as torchdata
 import cv2
 from tqdm import tqdm
 
+from broden_dataset.joint_dataset import broden_dataset
+
 
 def visualize_result(data, preds, args):
     colors = loadmat('data/color150.mat')['colors']
@@ -40,45 +42,56 @@ def visualize_result(data, preds, args):
                 img_name.replace('.jpg', '.png')), im_vis)
 
 
-def evaluate(segmentation_module, loader, args, dev_id, result_queue):
+def get_metrics(pred, data, args):
+    matric = {}
+    return matric
 
+
+def evaluate(segmentation_module, loader, args, dev_id, result_queue):
     segmentation_module.eval()
 
-    for i, batch_data in enumerate(loader):
-        # process data
-        batch_data = batch_data[0]
-        seg_label = as_numpy(batch_data['seg_label'][0])
-
-        img_resized_list = batch_data['img_data']
+    for i, data_torch in enumerate(loader):
+        data_torch = data_torch[0]  # TODO(LYC):: support batch size > 1
+        data_np = as_numpy(data_torch)
+        seg_size = data_np['seg_object'].shape[0:2]
 
         with torch.no_grad():
-            segSize = (seg_label.shape[0], seg_label.shape[1])
-            pred = torch.zeros(1, args.num_class, segSize[0], segSize[1])
+            pred_ms = {}
+            for k in ['object', 'material']:
+                pred_ms[k] = torch.zeros(1, args.nr_classes[k], *seg_size)
+            pred_ms['part'] = []
+            for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                n_part = len(broden_dataset.object_part[object_label])
+                pred_ms['part'].append(torch.zeros(1, n_part, *seg_size))
+            pred_ms['scene'] = torch.zeros(1, args.nr_classes['scene'])
 
-            for img in img_resized_list:
-                feed_dict = batch_data.copy()
-                feed_dict['img_data'] = img
-                del feed_dict['img_ori']
-                del feed_dict['info']
-                feed_dict = async_copy_to(feed_dict, dev_id)
-
+            for img in data_torch['img_resized_list']:
                 # forward pass
-                pred_tmp = segmentation_module(feed_dict, segSize=segSize)
-                pred = pred + pred_tmp.cpu() / len(args.imgSize)
+                feed_dict = async_copy_to({"img": img.unsqueeze(0)}, dev_id)
+                pred = segmentation_module(feed_dict, seg_size=seg_size)
+                for k in ['scene', 'object', 'material']:
+                    pred_ms[k] = pred_ms[k] + pred[k].cpu() / len(args.imgSize)
+                for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                    pred_ms['part'][idx_part] += pred['part'][idx_part].cpu() / len(args.imgSize)
 
-            _, preds = torch.max(pred.data.cpu(), dim=1)
-            preds = as_numpy(preds.squeeze(0))
+            for k in ['scene', 'object', 'material']:
+                _, p_max = torch.max(pred_ms[k].cpu(), dim=1)
+                pred_ms[k] = p_max.squeeze(0)
+            for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                _, p_max = torch.max(pred_ms['part'][idx_part].cpu(), dim=1)
+                pred_ms['part'][idx_part] = p_max.squeeze(0)
+            pred_ms = as_numpy(pred_ms)
 
         # calculate accuracy and SEND THEM TO MASTER
-        acc, pix = accuracy(preds, seg_label)
-        intersection, union = intersectionAndUnion(preds, seg_label, args.num_class)
-        result_queue.put_nowait((acc, pix, intersection, union))
+        # acc, pix = accuracy(preds, seg_label)
+        # intersection, union = intersectionAndUnion(preds, seg_label, args.num_class)
+        result_queue.put_nowait(get_metrics(pred_ms, data_np, args))
 
         # visualization
-        if args.visualize:
-            visualize_result(
-                (batch_data['img_ori'], seg_label, batch_data['info']),
-                preds, args)
+        # if args.visualize:
+        #     visualize_result(
+        #         (data['img_ori'], seg_label, data['info']),
+        #         preds, args)
 
 
 def worker(args, dev_id, start_idx, end_idx, result_queue):
@@ -86,8 +99,9 @@ def worker(args, dev_id, start_idx, end_idx, result_queue):
 
     # Dataset and Loader
     dataset_val = ValDataset(
-        args.list_val, args, max_sample=args.num_val,
-        start_idx=start_idx, end_idx=end_idx)
+        broden_dataset.record_list['validation'], args,
+        max_sample=args.num_val, start_idx=start_idx,
+        end_idx=end_idx)
     loader_val = torchdata.DataLoader(
         dataset_val,
         batch_size=args.batch_size,
@@ -104,18 +118,17 @@ def worker(args, dev_id, start_idx, end_idx, result_queue):
     net_decoder = builder.build_decoder(
         arch=args.arch_decoder,
         fc_dim=args.fc_dim,
-        num_class=args.num_class,
+        nr_classes=args.nr_classes,
         weights=args.weights_decoder,
         use_softmax=True)
 
-    crit = nn.NLLLoss(ignore_index=-1)
-
-    segmentation_module = SegmentationModule(net_encoder, net_decoder, crit)
+    segmentation_module = SegmentationModule(net_encoder, net_decoder)
 
     segmentation_module.cuda()
 
     # Main loop
     evaluate(segmentation_module, loader_val, args, dev_id, result_queue)
+
 
 def main(args):
     # Parse device ids
@@ -125,11 +138,11 @@ def main(args):
     all_devs = [int(x) for x in all_devs]
     nr_devs = len(all_devs)
 
-    with open(args.list_val, 'r') as f:
-        lines = f.readlines()
-        nr_files = len(lines)
-        if args.num_val > 0:
-            nr_files = min(nr_files, args.num_val)
+    print("nr_dev: {}".format(nr_devs))
+
+    nr_files = len(broden_dataset.record_list['validation'])
+    if args.num_val > 0:
+        nr_files = min(nr_files, args.num_val)
     nr_files_per_dev = math.ceil(nr_files / nr_devs)
 
     pbar = tqdm(total=nr_files)
@@ -153,10 +166,10 @@ def main(args):
     while processed_counter < nr_files:
         if result_queue.empty():
             continue
-        (acc, pix, intersection, union) = result_queue.get()
-        acc_meter.update(acc, pix)
-        intersection_meter.update(intersection)
-        union_meter.update(union)
+        result = result_queue.get()
+        # acc_meter.update(acc, pix)
+        # intersection_meter.update(intersection)
+        # union_meter.update(union)
         processed_counter += 1
         pbar.update(1)
 
@@ -224,6 +237,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
+
+    nr_classes = broden_dataset.nr.copy()
+    nr_classes['part'] = sum(
+        [len(parts) for obj, parts in broden_dataset.object_part.items()])
+    args.nr_classes = nr_classes
 
     # absolute paths of model weights
     args.weights_encoder = os.path.join(args.ckpt, args.id,

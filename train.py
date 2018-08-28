@@ -73,15 +73,17 @@ def train(segmentation_module, iterator, optimizers, history, epoch, args):
 
         # calculate accuracy, and display
         if i % args.disp_iter == 0:
+            multi_task_loss_info = ", ".join(["{}: {:.4f}".format(
+                k[0], meter.average() if meter.average() is not None else 0)
+                for k, meter in ave_losses.items()])
             print('Epoch: [{}][{}/{}], Time: {:.2f}, Data: {:.2f}, '
                   'lr_encoder: {:.6f}, lr_decoder: {:.6f}, '
-                  'Accuracy: {:4.2f}, Loss: {:.6f}'
+                  'Accuracy: {:4.2f}, Loss: {:.6f}, {}'
                   .format(epoch, i, args.epoch_iters,
                           batch_time.average(), data_time.average(),
                           args.running_lr_encoder, args.running_lr_decoder,
-                          ave_acc.average(), ave_total_loss.average()))
-            print(", ".join(["{}: {:.4f}".format(k[0], meter.average() if meter.average() is not None else 0)
-                             for k, meter in ave_losses.items()]))
+                          ave_acc.average(), ave_total_loss.average(),
+                          multi_task_loss_info))
 
             fractional_epoch = epoch - 1 + 1. * i / args.epoch_iters
             history['train']['epoch'].append(fractional_epoch)
@@ -198,13 +200,10 @@ def main(args):
         arch=args.arch_encoder,
         fc_dim=args.fc_dim,
         weights=args.weights_encoder)
-    nr_classes = broden_dataset.nr.copy()
-    nr_classes['part'] = sum(
-        [len(parts) for obj, parts in broden_dataset.object_part.items()])
     net_decoder = builder.build_decoder(
         arch=args.arch_decoder,
         fc_dim=args.fc_dim,
-        nr_classes=nr_classes,
+        nr_classes=args.nr_classes,
         weights=args.weights_decoder)
 
     # TODO(LYC):: move criterion outside model.
@@ -343,6 +342,11 @@ if __name__ == '__main__':
     args.id += '-decay' + str(args.weight_decay)
     args.id += '-fixBN' + str(args.fix_bn)
     print('Model ID: {}'.format(args.id))
+
+    nr_classes = broden_dataset.nr.copy()
+    nr_classes['part'] = sum(
+        [len(parts) for obj, parts in broden_dataset.object_part.items()])
+    args.nr_classes = nr_classes
 
     args.ckpt = os.path.join(args.ckpt, args.id)
     if not os.path.isdir(args.ckpt):
