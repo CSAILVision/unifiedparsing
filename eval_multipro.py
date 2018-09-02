@@ -49,8 +49,7 @@ def get_metrics(pred, data):
     metric['scene'] = {}
     metric['scene']['gt'] = data['scene_label']
     if metric['scene']['gt'] != -1:
-        scene_t1 = np.argmax(pred['scene'])
-        metric['scene']['top1'] = (scene_t1 == metric['scene']['gt'])
+        metric['scene']['top1'] = (pred['scene'] == metric['scene']['gt'])
 
     # object, part
     metric['valid_object'] = data['valid_object']
@@ -133,7 +132,8 @@ def evaluate(segmentation_module, loader, args, dev_id, result_queue):
                 for idx_part, object_label in enumerate(broden_dataset.object_with_part):
                     pred_ms['part'][idx_part] += pred['part'][idx_part].cpu() / len(args.imgSize)
 
-            for k in ['scene', 'object', 'material']:
+            pred_ms['scene'] = torch.argmax(pred_ms['scene'].squeeze(0))
+            for k in ['object', 'material']:
                 _, p_max = torch.max(pred_ms[k].cpu(), dim=1)
                 pred_ms[k] = p_max.squeeze(0)
             for idx_part, object_label in enumerate(broden_dataset.object_with_part):
@@ -267,12 +267,9 @@ def main(args):
         procs.append(proc)
 
     # master fetches results
-    processed_counter, all_result = 0, []
-    while processed_counter < nr_files:
-        if result_queue.empty():
-            continue
+    all_result = []
+    for i in range(nr_files):
         all_result.append(result_queue.get())
-        processed_counter += 1
         pbar.update(1)
 
     for p in procs:

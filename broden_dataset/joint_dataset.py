@@ -20,7 +20,7 @@ class BrodenDataset:
 
         """ data sets """
 
-        broden_dataset_root = "/afs/csail.mit.edu/u/l/liuyingcheng/code/NetDissect/dataset_toy_resized"
+        broden_dataset_root = "/PATH/TO/NETDISSECT/DATASET/"
 
         # Dataset 1:    ADE20K. object, part, scene. 
         #               use resized data, use 1 level of the part seg. 
@@ -51,13 +51,13 @@ class BrodenDataset:
         # TODO(LYC):: restore complete json
         self.record_list = {"train": [], "validation": []}
         self.record_list['train'].append(get_records(
-            os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train_toy.json")))
+            os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train.json")))
         self.record_list['train'].append(get_records(
-            os.path.join(self.broden_dataset_info, 'broden_os_train_toy.json')))
+            os.path.join(self.broden_dataset_info, 'broden_os_train.json')))
         # NOTE(LYC):: use training data in validation for debugging.
         self.record_list['validation'] = \
-            get_records(os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train_toy.json")) + \
-            get_records(os.path.join(self.broden_dataset_info, 'broden_os_train_toy.json'))
+                get_records(os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_val.json")) + \
+                get_records(os.path.join(self.broden_dataset_info, 'broden_os_val.json'))
 
         """ recover object, part, scene, material and texture. """
 
