@@ -59,7 +59,7 @@ def get_metrics(pred, data):
         metric['object'] = {}
         object_gt, object_pred = data['seg_object'], pred['object']
 
-        metric["object"]["acc"] = ((object_gt == object_pred) * object_gt > 0).sum()  # ignore 0
+        metric["object"]["acc"] = ((object_gt == object_pred) * (object_gt > 0)).sum()  # ignore 0
         metric["object"]["pixel"] = (object_gt > 0).sum()  # ignore 0
 
         metric["object"]["inter"], metric["object"]["uni"] = intersectionAndUnion(
@@ -96,7 +96,7 @@ def get_metrics(pred, data):
         metric['material'] = {}
         material_gt, material_pred = data['seg_material'], pred['material']
 
-        metric["material"]["acc"] = ((material_gt == material_pred) * material_gt > 0).sum()  # ignore 0
+        metric["material"]["acc"] = ((material_gt == material_pred) * (material_gt > 0)).sum()  # ignore 0
         metric["material"]["pixel"] = (material_gt > 0).sum()  # ignore 0
 
         metric["material"]["inter"], metric["material"]["uni"] = intersectionAndUnion(
@@ -197,7 +197,7 @@ def get_benchmark_result(result):
     object_acc = sum([item['object']['acc'] for item in result if item['valid_object']])
     object_inter = sum([item['object']['inter'] for item in result if item['valid_object']])
     object_uni = sum([item['object']['uni'] for item in result if item['valid_object']])
-    benchmark['object']['pixel_acc'] = object_acc / float(object_pixel)
+    benchmark['object']['pixel_acc'] = object_acc / (float(object_pixel) + 1e-8)
     benchmark['object']['mIoU'] = (object_inter / (object_uni + 1e-8)).mean()
 
     # part
@@ -220,7 +220,7 @@ def get_benchmark_result(result):
             continue
 
         mIoU_part.append((part_inter_cnt / (part_uni_cnt + 1e-8)).mean())
-        pixel_acc_part.append(part_acc_cnt / float(part_pixel_cnt))
+        pixel_acc_part.append(part_acc_cnt / (float(part_pixel_cnt) + 1e-8))
 
     benchmark['part']['pixel_acc'] = np.mean(pixel_acc_part)
     benchmark['part']['mIoU'] = np.mean(mIoU_part)
@@ -234,7 +234,7 @@ def get_benchmark_result(result):
     material_acc = sum([item['material']['acc'] for item in result if item['valid_material']])
     material_inter = sum([item['material']['inter'] for item in result if item['valid_material']])
     material_uni = sum([item['material']['uni'] for item in result if item['valid_material']])
-    benchmark['material']['pixel_acc'] = material_acc / float(material_pixel)
+    benchmark['material']['pixel_acc'] = material_acc / (float(material_pixel) + 1e-8)
     benchmark['material']['mIoU'] = (material_inter / (material_uni + 1e-8)).mean()
 
     return benchmark
