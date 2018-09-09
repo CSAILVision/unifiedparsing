@@ -22,6 +22,17 @@ class SegmentationModuleBase(nn.Module):
         return acc
 
     @staticmethod
+    def part_pixel_acc(pred_part, gt_seg_part, gt_seg_object, object_label, valid):
+        mask_object = (gt_seg_object == object_label)
+        _, pred = torch.max(pred_part, dim=1)
+        acc_sum = mask_object * (pred == gt_seg_part)
+        acc_sum = torch.sum(acc_sum.view(acc_sum.size(0), -1), dim=1)
+        acc_sum = torch.sum(acc_sum * valid)
+        pixel_sum = torch.sum(mask_object.view(mask_object.size(0), -1), dim=1)
+        pixel_sum = torch.sum(pixel_sum * valid)
+        return acc_sum, pixel_sum 
+
+    @staticmethod
     def part_loss(pred_part, gt_seg_part, gt_seg_object, object_label, valid):
         mask_object = (gt_seg_object == object_label)
         loss = F.nll_loss(pred_part, gt_seg_part * mask_object.long(), reduction='none')
@@ -59,13 +70,12 @@ class SegmentationModule(SegmentationModuleBase):
             else:
                 raise ValueError
 
-            # TODO(LYC):: use more detailed output switch
             pred = self.decoder(
                 self.encoder(feed_dict['img'], return_feature_maps=True),
                 output_switch=output_switch
             )
 
-            # multi task loss
+            # loss
             loss_dict = {}
             if pred['object'] is not None:  # object
                 loss_dict['object'] = self.crit_dict['object'](pred['object'], feed_dict['seg_object'])
@@ -80,22 +90,30 @@ class SegmentationModule(SegmentationModuleBase):
                 loss_dict['scene'] = self.crit_dict['scene'](pred['scene'], feed_dict['scene_label'])
             if pred['material'] is not None:  # material
                 loss_dict['material'] = self.crit_dict['material'](pred['material'], feed_dict['seg_material'])
+            loss_dict['total'] = sum([loss_dict[k] * self.loss_scale[k] for k in loss_dict.keys()])
 
-            loss = 0
-            for k in loss_dict.keys():
-                loss += loss_dict[k] * self.loss_scale[k]
+            # metric 
+            metric_dict= {}
+            if pred['object'] is not None:
+                metric_dict['object'] = self.pixel_acc(
+                    pred['object'], feed_dict['seg_object'], ignore_index=0)
+            if pred['material'] is not None:
+                metric_dict['material'] = self.pixel_acc(
+                    pred['material'], feed_dict['seg_material'], ignore_index=0)
+            if pred['part'] is not None:
+                acc_sum, pixel_sum = 0, 0
+                for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                    acc, pixel = self.part_pixel_acc(
+                        pred['part'][idx_part], feed_dict['seg_part'], feed_dict['seg_object'],
+                        object_label, feed_dict['valid_part'][:, idx_part])
+                    acc_sum += acc
+                    pixel_sum += pixel
+                metric_dict['part'] = acc_sum.float() / (pixel_sum.float() + 1e-10)
+            if pred['scene'] is not None:
+                metric_dict['scene'] = self.pixel_acc(
+                    pred['scene'], feed_dict['scene_label'], ignore_index=-1)
 
-            # metric
-            # TODO(LYC):: add metric
-            # acc = self.pixel_acc(pred['object'], feed_dict['seg_object'], ignore_index=0)
-            # acc = self.pixel_acc(pred['material'], feed_dict['seg_material'], ignore_index=0)
-
-            ret = {}
-            for k in loss_dict.keys():
-                ret["loss_" + k] = loss_dict[k]
-            ret['loss'] = loss
-
-            return ret
+            return {'metric': metric_dict, 'loss': loss_dict}
         else: # inference
             output_switch = {"object": True, "part": True, "scene": True, "material": True}
             pred = self.decoder(self.encoder(feed_dict['img'], return_feature_maps=True),

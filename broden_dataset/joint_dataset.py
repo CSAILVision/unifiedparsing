@@ -48,13 +48,11 @@ class BrodenDataset:
         """ use multi source dataset """
         self.broden_dataset_info = "./data"
         # FIXIT(LYC):: pascal json nr part is wrong.
-        # TODO(LYC):: restore complete json
         self.record_list = {"train": [], "validation": []}
         self.record_list['train'].append(get_records(
             os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train.json")))
         self.record_list['train'].append(get_records(
             os.path.join(self.broden_dataset_info, 'broden_os_train.json')))
-        # NOTE(LYC):: use training data in validation for debugging.
         self.record_list['validation'] = \
                 get_records(os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_val.json")) + \
                 get_records(os.path.join(self.broden_dataset_info, 'broden_os_val.json'))
@@ -97,7 +95,6 @@ class BrodenDataset:
         #   scene_label: empty when scene_label == -1
         #   texture_label: empty when texture_label == -1
         #   material, valid_mat: empty when valid_mat == 0
-        # this method is specific to input pip.
        
         # decode metadata
         ds = self.data_sets[record["dataset"]]
@@ -108,7 +105,6 @@ class BrodenDataset:
         img = ds.image_data(record["file_index"])
         seg_obj = numpy.zeros((img.shape[0], img.shape[1]), dtype=numpy.uint16)
         valid_obj = 0
-        # TODO(LYC):: use compressed batch seg part
         batch_seg_part = numpy.zeros((self.nr_object_with_part, img.shape[0], img.shape[1]), dtype=numpy.uint8)
         valid_part = numpy.zeros(self.nr_object_with_part, dtype=numpy.bool)
         scene_label = -1

@@ -119,9 +119,3 @@ def setup_sigint():
 
 def restore_sigint(original):
     signal.signal(signal.SIGINT, original)
-
-
-if __name__ == "__main__":
-    root = "/afs/csail.mit.edu/u/l/liuyingcheng/code/NetDissect/dataset_toy_resized"
-    generate_resized_ade20k(os.path.join(root, 'ade20k'))
-    generate_resized_os(os.path.join(root, 'opensurfaces'))

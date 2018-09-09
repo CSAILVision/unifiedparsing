@@ -23,11 +23,11 @@ from broden_dataset.joint_dataset import broden_dataset
 def train(segmentation_module, iterator, optimizers, history, epoch, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
-    ave_total_loss = AverageMeter()
-    ave_acc = AverageMeter()
 
     names = ['object', 'part', 'scene', 'material']
     ave_losses = {n: AverageMeter() for n in names}
+    ave_metric = {n: AverageMeter() for n in names}
+    ave_losses['total'] = AverageMeter() 
 
     segmentation_module.train(not args.fix_bn)
 
@@ -42,15 +42,10 @@ def train(segmentation_module, iterator, optimizers, history, epoch, args):
         segmentation_module.zero_grad()
 
         # forward pass
-        # loss, acc = segmentation_module(batch_data)
-        # loss = loss.mean()
-        # acc = acc.mean()
-        # TODO(LYC):: should mean non zero element?
         ret = segmentation_module(batch_data)
-        loss = ret['loss']
-        loss = loss.mean()
 
         # Backward
+        loss = ret['loss']['total'].mean()
         loss.backward()
         for optimizer in optimizers:
             optimizer.step()
@@ -59,38 +54,34 @@ def train(segmentation_module, iterator, optimizers, history, epoch, args):
         batch_time.update(time.time() - tic)
         tic = time.time()
 
-        # update average loss and acc
-        ave_total_loss.update(loss.data[0])
-        # ave_acc.update(acc.data[0]*100)
-        # TODO(LYC):: remove fake acc
-        ave_acc.update(0.23333*100)
+        # measure losses 
+        for name in ret['loss'].keys():
+            ave_losses[name].update(ret['loss'][name].mean().item())
 
-        # update loss of each task
-        for name, meter in ave_losses.items():
-            if "loss_" + name in ret.keys():
-                l = ret["loss_" + name].mean()
-                ave_losses[name].update(l)
+        # measure metrics 
+        # NOTE: scene metric will be much lower than benchmark
+        for name in ret['metric'].keys():
+            ave_metric[name].update(ret['metric'][name].mean().item())
 
         # calculate accuracy, and display
         if i % args.disp_iter == 0:
-            multi_task_loss_info = ", ".join(["{}: {:.4f}".format(
-                k[0], meter.average() if meter.average() is not None else 0)
-                for k, meter in ave_losses.items()])
+            loss_info = "Loss: total {:.4f}, ".format(ave_losses['total'].average())
+            loss_info += ", ".join(["{} {:.2f}".format(
+                n[0], ave_losses[n].average() 
+                if ave_losses[n].average() is not None else 0) for n in names])
+            acc_info = "Accuracy: " + ", ".join(["{} {:4.2f}".format(
+                n[0], ave_metric[n].average() 
+                if ave_metric[n].average() is not None else 0) for n in names])
             print('Epoch: [{}][{}/{}], Time: {:.2f}, Data: {:.2f}, '
-                  'lr_encoder: {:.6f}, lr_decoder: {:.6f}, '
-                  'Accuracy: {:4.2f}, Loss: {:.6f}, {}'
+                  'LR: encoder {:.6f}, decoder {:.6f}, {}, {}'
                   .format(epoch, i, args.epoch_iters,
                           batch_time.average(), data_time.average(),
                           args.running_lr_encoder, args.running_lr_decoder,
-                          ave_acc.average(), ave_total_loss.average(),
-                          multi_task_loss_info))
+                          acc_info, loss_info))
 
             fractional_epoch = epoch - 1 + 1. * i / args.epoch_iters
             history['train']['epoch'].append(fractional_epoch)
-            history['train']['loss'].append(loss.data[0])
-            # history['train']['acc'].append(acc.data[0])
-            # TODO(LYC):: remove fake acc
-            history['train']['acc'].append(0.2333)
+            history['train']['loss'].append(loss.item())
 
         # adjust learning rate
         cur_iter = i + (epoch - 1) * args.epoch_iters
