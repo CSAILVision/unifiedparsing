@@ -39,15 +39,6 @@ class PascalSegmentation(AbstractSegmentation):
         # Normalized names
         self.codes = normalize_all_readable(codes, collapse_adjectives)
         self.part_object_names, self.part_names, self.part_key = normalize_part_key(self.codes)
-
-        def print_dict(d):
-            ks = sorted(list(d.keys()))
-            s = ''
-            for k in ks:
-                v = d[k]
-                s += "{} {}\n".format(k, v)
-            return s
-
         # Load the PASCAL context segmentation labels 
         self.object_names = load_context_labels(
             os.path.join(directory, self.contextdir, 'labels.txt'))
@@ -131,7 +122,6 @@ def normalize_part_key(raw_names):
     Returns names of object classes, parts, and a part_key mapping raw
     (object, part) number pair tuples to the canonical integer part code.
     """
-    # NOTE:  engine 3 -> engine is alreaday done in load_part2ind. 
     # Identify the maximum object and part indexes used.
     object_class_count = max(c for c, p in raw_names) + 1
     # Create a list of object names, a list of part names, and a part key
@@ -148,15 +138,6 @@ def normalize_part_key(raw_names):
         if n in alias_key:
             code = alias_key[n]
         else:
-            """
-            code = len(part_class_names)
-            alias_key[n] = code
-            # Join the object name and class name to make a part name
-            # part_class_names.append(' '.join(n))
-            # Instead, just use the part name for the part name
-            # I think appending useless part class names is unnecessary. 
-            part_class_names.append(n[1])
-            """
             if n[1] in part_class_names:
                 code = part_class_names.index(n[1])
             else:
@@ -175,9 +156,6 @@ def normalize_all_readable(raw_keys, collapse_adjectives):
 
 def normalize_readable(name, collapse_adjectives):
     # Long names for short part names that are unexplained in the file.
-    # NOTE: original code bug fixed here.
-    #       btw, there is a part called "leftside" in object "car", if we collapse
-    #       "side" and "left", this part will be lost. 
     decoded_names = dict(
         lfho='left front hoof',
         rfho='right front hoof',
@@ -334,6 +312,3 @@ def wants(what, option):
         return True
     return what in option
 
-
-if __name__ == '__main__':
-    pass

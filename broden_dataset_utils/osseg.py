@@ -40,7 +40,7 @@ class OpenSurfaceSegmentation(AbstractSegmentation):
     def filename(self, i):
         """Returns the filename for the nth dataset image."""
         photo_id = int(self.image_meta[i]['photo_id'])
-        return os.path.join(self.directory, 'photos', '%d_resized.jpg' % photo_id)
+        return os.path.join(self.directory, 'photos', '%d.jpg' % photo_id)
 
     def metadata(self, i):
         """Returns an object that can be used to create all segmentations."""
@@ -52,7 +52,7 @@ class OpenSurfaceSegmentation(AbstractSegmentation):
     def seg_filename(self, i):
         """ Return the seg filename for the nth dataset seg img. """
         photo_id = int(self.image_meta[i]['photo_id'])
-        return os.path.join(self.directory, 'photos-labels', '%d_resized.png' % photo_id)
+        return os.path.join(self.directory, 'photos-labels', '%d.png' % photo_id)
 
     @classmethod
     def resolve_segmentation(cls, m, categories=None):

@@ -33,8 +33,7 @@ class AdeSegmentation(AbstractSegmentation):
         self.index = Ade20kIndex(
             **{name: index[name][()] for name in index.dtype.names})
         # Here we use adechallenger scene label instead of ade20k.
-        # TODO(LYC):: replace this file.
-        with open("./data/scene_categories.txt", 'r') as f:
+        with open("./meta_file/scene_categories.txt", 'r') as f:
             lines = f.readlines()
         self.index_scene_adecha = []
         for i, l in enumerate(lines):
@@ -62,8 +61,6 @@ class AdeSegmentation(AbstractSegmentation):
     def filename(self, n):
         """Returns the filename for the nth dataset image."""
         filename = self.index.filename[n]
-        # if self.use_resized and self.resized_file_flag[n]:
-        #     filename = re.sub(r'\.jpg$', '_resized.jpg', filename)
         folder = self.index.folder[n]
         return self.expand(folder, filename)
 
@@ -113,15 +110,6 @@ class AdeSegmentation(AbstractSegmentation):
             if len(globbed):
                 return globbed[0]
         return result
-
-    def generate_train_val_record(self):
-        raise NotImplementedError
-
-    def training_records(self):
-        raise NotImplementedError
-
-    def validation_records(self):
-        raise NotImplementedError
 
 
 def norm_name(s):

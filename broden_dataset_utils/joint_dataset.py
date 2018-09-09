@@ -47,7 +47,6 @@ class BrodenDataset:
 
         """ use multi source dataset """
         self.broden_dataset_info = "./meta_file"
-        # FIXIT(LYC):: pascal json nr part is wrong.
         self.record_list = {"train": [], "validation": []}
         self.record_list['train'].append(get_records(
             os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train.json")))
