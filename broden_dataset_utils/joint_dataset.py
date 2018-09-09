@@ -20,7 +20,7 @@ class BrodenDataset:
 
         """ data sets """
 
-        broden_dataset_root = "/PATH/TO/NETDISSECT/DATASET/"
+        broden_dataset_root = "./broden_dataset"
 
         # Dataset 1:    ADE20K. object, part, scene. 
         #               use resized data, use 1 level of the part seg. 
@@ -46,7 +46,7 @@ class BrodenDataset:
         self.data_sets = OrderedDict(ade20k=ade, pascal=pascal, os=opensurface)
 
         """ use multi source dataset """
-        self.broden_dataset_info = "./data"
+        self.broden_dataset_info = "./meta_file"
         # FIXIT(LYC):: pascal json nr part is wrong.
         self.record_list = {"train": [], "validation": []}
         self.record_list['train'].append(get_records(
