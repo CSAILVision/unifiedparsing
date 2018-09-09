@@ -20,7 +20,7 @@ import lib.utils.data as torchdata
 import cv2
 from tqdm import tqdm
 
-from broden_dataset.joint_dataset import broden_dataset
+from broden_dataset_utils.joint_dataset import broden_dataset
 
 
 def visualize_result(data, preds, args):

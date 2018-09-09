@@ -8,7 +8,7 @@ from scipy.misc import imread, imresize
 from torchvision import transforms
 
 import lib.utils.data as torchdata
-from broden_dataset.joint_dataset import broden_dataset
+from broden_dataset_utils.joint_dataset import broden_dataset
 
 
 # Round x to the nearest multiple of p and x' >= x

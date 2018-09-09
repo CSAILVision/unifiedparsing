@@ -5,7 +5,7 @@ import torchvision
 from . import resnet, resnext
 from lib.nn import SynchronizedBatchNorm2d, PrRoIPool2D
 
-from broden_dataset.joint_dataset import broden_dataset
+from broden_dataset_utils.joint_dataset import broden_dataset
 
 
 class SegmentationModuleBase(nn.Module):

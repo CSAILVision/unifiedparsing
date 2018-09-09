@@ -11,7 +11,7 @@ import torch
 from IPython import embed
 from scipy.io import loadmat
 
-from broden_dataset.joint_dataset import broden_dataset
+from broden_dataset_utils.joint_dataset import broden_dataset
 from dataset import TrainDataset
 
 colors = loadmat('./data/color150.mat')['colors']
