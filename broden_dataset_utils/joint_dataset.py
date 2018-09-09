@@ -8,10 +8,10 @@ from collections import namedtuple
 
 import numpy
 
-import broden_dataset_utils.adeseg
-import broden_dataset_utils.dtdseg
-import broden_dataset_utils.osseg
-import broden_dataset_utils.pascalseg
+from broden_dataset_utils import adeseg
+from broden_dataset_utils import dtdseg
+from broden_dataset_utils import osseg
+from broden_dataset_utils import pascalseg
 
 
 class BrodenDataset:
@@ -24,23 +24,23 @@ class BrodenDataset:
 
         # Dataset 1:    ADE20K. object, part, scene. 
         #               use resized data, use 1 level of the part seg. 
-        ade = broden_dataset.adeseg.AdeSegmentation(
+        ade = adeseg.AdeSegmentation(
                 directory=os.path.join(broden_dataset_root, "ade20k"),
                 version='ADE20K_2016_07_26')
 
         # Dataset 2:    Pascal context, Pascal part. object, part.
         #               collapse objectives, remove distinction between upper-arm, lower-arm, etc.
-        pascal = broden_dataset.pascalseg.PascalSegmentation(
+        pascal = pascalseg.PascalSegmentation(
                 directory=os.path.join(broden_dataset_root, "pascal"),
                 collapse_adjectives=set(['left', 'right', 'front', 'back', 'upper', 'lower', 'side']))
 
         # Dataset 3:    dtd. texture.
-        # dtd = broden_dataset.dtdseg.DtdSegmentation(
+        # dtd = dtdseg.DtdSegmentation(
         #     directory=os.path.join(broden_dataset_root, "dtd", "dtd-r1.0.1"))
 
         # Dataset 4:    opensurface. material.
         #               use resized blank removed version. 
-        opensurface = broden_dataset.osseg.OpenSurfaceSegmentation(
+        opensurface = osseg.OpenSurfaceSegmentation(
             directory=os.path.join(broden_dataset_root, "opensurfaces"))
 
         self.data_sets = OrderedDict(ade20k=ade, pascal=pascal, os=opensurface)

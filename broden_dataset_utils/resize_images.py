@@ -6,14 +6,12 @@ from multiprocessing import Pool, cpu_count
 
 import cv2
 
-import broden_dataset_utils.adeseg
-import broden_dataset_utils.dtdseg
-import broden_dataset_utils.osseg
-import broden_dataset_utils.pascalseg
+from broden_dataset_utils import adeseg
+from broden_dataset_utils import osseg
 
 
 def generate_resized_ade20k(ade_dir):
-    ds = broden_dataset.adeseg.AdeSegmentation(
+    ds = adeseg.AdeSegmentation(
         directory=ade_dir,
         version="ADE20K_2016_07_26")
     data_sets = {"ade20k": ds}
@@ -52,7 +50,7 @@ def resize_data_ade(record, verbose):
 
 
 def generate_resized_os(os_dir):
-    ds = broden_dataset.osseg.OpenSurfaceSegmentation(directory=os_dir)
+    ds = osseg.OpenSurfaceSegmentation(directory=os_dir)
     map_in_pool(partial(resize_data_os, verbose=True),
                 all_dataset_segmentations({"opensurfaces": ds}),
                 single_process=False,
@@ -119,3 +117,13 @@ def setup_sigint():
 
 def restore_sigint(original):
     signal.signal(signal.SIGINT, original)
+
+
+def main():
+    root = "./broden_dataset"
+    generate_resized_ade20k(os.path.join(root, 'ade20k'))
+    generate_resized_os(os.path.join(root, 'opensurfaces'))
+
+
+if __name__ == '__main__':
+    main()

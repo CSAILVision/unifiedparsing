@@ -1,5 +1,6 @@
 # System libs
 import os
+from tqdm import tqdm
 import datetime
 import argparse
 from distutils.version import LooseVersion
@@ -8,6 +9,7 @@ from multiprocessing import Queue, Process
 import numpy as np
 import math
 import torch
+import cv2
 import torch.nn as nn
 from scipy.io import loadmat
 # Our libs
@@ -17,9 +19,6 @@ from utils import AverageMeter, colorEncode, accuracy, intersectionAndUnion, par
 from lib.nn import user_scattered_collate, async_copy_to
 from lib.utils import as_numpy, mark_volatile
 import lib.utils.data as torchdata
-import cv2
-from tqdm import tqdm
-
 from broden_dataset_utils.joint_dataset import broden_dataset
 
 
