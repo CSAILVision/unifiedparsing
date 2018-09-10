@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-# Start from parent directory of script
-cd "$(dirname "$(dirname "$(readlink -f "$0")")")"
-
 # PASCAL 2010 Images
 if [ ! -f broden_dataset/pascal/VOC2010/ImageSets/Segmentation/train.txt ]
 then
@@ -49,7 +46,7 @@ mkdir -p broden_dataset/pascal/context
 pushd broden_dataset/pascal/context
 wget --progress=bar \
    http://www.cs.stanford.edu/~roozbeh/pascal-context/trainval.tar.gz \
-   -O trainval.tar.gz
+   -O trainval.tar.gz --no-check-certificate
 tar xvfz trainval.tar.gz
 rm trainval.tar.gz
 popd
@@ -88,10 +85,10 @@ wget --progress=bar \
 unzip opensurfaces-release-0.zip
 rm opensurfaces-release-0.zip
 PROCESS=process_opensurfaces_release_0.py
-wget --progress=bar \
-  http://labelmaterial.s3.amazonaws.com/release/$PROCESS \
-  -O $PROCESS
-python $PROCESS
+popd
+cp broden_dataset_utils/$PROCESS broden_dataset/opensurfaces/
+pushd broden_dataset/opensurfaces
+python3 $PROCESS
 popd
 
 fi

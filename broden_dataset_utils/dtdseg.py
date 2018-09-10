@@ -4,7 +4,7 @@ import os
 
 import numpy
 
-from broden_dataset_utils.loadseg import AbstractSegmentation
+from loadseg import AbstractSegmentation
 
 
 class DtdSegmentation(AbstractSegmentation):

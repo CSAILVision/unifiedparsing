@@ -6,8 +6,8 @@ from multiprocessing import Pool, cpu_count
 
 import cv2
 
-from broden_dataset_utils import adeseg
-from broden_dataset_utils import osseg
+import adeseg
+import osseg
 
 
 def generate_resized_ade20k(ade_dir):
@@ -87,7 +87,7 @@ def map_in_pool(fn, data, single_process=False, verbose=False):
     """
     if single_process:
         return list(map(fn, data))
-    n_procs = min(cpu_count(), 32)
+    n_procs = min(cpu_count(), 16)
     original_sigint_handler = setup_sigint()
     pool = Pool(processes=n_procs, initializer=setup_sigint)
     restore_sigint(original_sigint_handler)

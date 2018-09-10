@@ -22,6 +22,14 @@ The human visual system is able to extract a remarkable amount of semantic infor
 
 - Dynamic scales of input for training with multiple GPUs.
 
+## Environment
+The code is developed under the following configurations.
+- Hardware: 2-8 GPUs (with at least 12G GPU memories) (change ```[--num_gpus NUM_GPUS]``` accordingly)
+- Software: Ubuntu 16.04.3 LTS, CUDA>=8.0, ***Python>=3.5***, ***PyTorch>=0.4.0***
+- Library: opencv, scipy, colormath, tqdm, PyTorch compiled with cffi
+
+*Warning:* We don't support the outdated Python 2 anymore. PyTorch 0.4.0 or higher is required to run the code.
+
 ## Use pretrained models
 
 ### Pertrained models for semantic segmentation on ADE20K
