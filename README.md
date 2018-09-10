@@ -30,18 +30,21 @@ You can use our pretrained models in PyTorch to segment input image. The usage i
 
 ```
 
-## Train and evaluate on Broden+
+## Training on Broden+
 
 You can train the networks and evaluate them on the Broden+ dataset
 
-1. Download the Broden+ dataset.
+1. Download and process the Broden+ dataset.
 ```
-
+    chmod +w download_Broden+.sh
+    ./download_Broden+.sh
 ```
+This script downloads and saves the Broden+ dataset to the ```broden_dataset``` directory, then resizes the images whose both sides are largers than 512 pixels.
 
-2. Run the training script.
+2. Training a default network (ResNet-50 + UPerNet) for scene classifcation + object, part and material parsing. During training, checkpoints will be saved in folder ```ckpt```.
 ```
-
+python3 train.py --num_gpus 8 --arch_encoder resnet50 --arch_decoder upernet 
+--segm_downsampling_rate 4 --padding_constant 32 --num_epoch 40
 ```
 
 3. Evaluate the trained model.
