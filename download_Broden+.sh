@@ -112,3 +112,8 @@ rm ADE20K_2016_07_26.zip
 popd
 
 fi
+
+# Resize ADE20 and Opensurfaces
+echo "Resize images"
+python3 broden_dataset_utils/resize_images.py
+echo "Resize done!"
