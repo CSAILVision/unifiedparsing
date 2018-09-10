@@ -245,9 +245,9 @@ if __name__ == '__main__':
     # Model related arguments
     parser.add_argument('--id', default='baseline',
                         help="a name for identifying the model")
-    parser.add_argument('--arch_encoder', default='resnet50_dilated8',
+    parser.add_argument('--arch_encoder', default='resnet50',
                         help="architecture of net_encoder")
-    parser.add_argument('--arch_decoder', default='ppm_bilinear_deepsup',
+    parser.add_argument('--arch_decoder', default='upernet',
                         help="architecture of net_decoder")
     parser.add_argument('--weights_encoder', default='',
                         help="weights to finetune net_encoder")
@@ -256,20 +256,12 @@ if __name__ == '__main__':
     parser.add_argument('--fc_dim', default=2048, type=int,
                         help='number of features between encoder and decoder')
 
-    # Path related arguments
-    parser.add_argument('--list_train',
-                        default='./data/train.odgt')  # TODO(LYC):: replace odgt.
-    parser.add_argument('--list_val',
-                        default='./data/validation.odgt')
-    parser.add_argument('--root_dataset',
-                        default='./data/')
-
     # optimization related arguments
     parser.add_argument('--num_gpus', default=8, type=int,
                         help='number of gpus to use')
     parser.add_argument('--batch_size_per_gpu', default=2, type=int,
                         help='input batch size')
-    parser.add_argument('--num_epoch', default=20, type=int,
+    parser.add_argument('--num_epoch', default=40, type=int,
                         help='epochs to train for')
     parser.add_argument('--start_epoch', default=1, type=int,
                         help='epoch to start training. useful if continue from a checkpoint')
@@ -288,17 +280,15 @@ if __name__ == '__main__':
                         help='fix bn params')
 
     # Data related arguments
-    parser.add_argument('--num_class', default=150, type=int,
-                        help='number of classes')
     parser.add_argument('--workers', default=16, type=int,
                         help='number of data loading workers')
     parser.add_argument('--imgSize', default=[300,375,450,525,600], nargs='+', type=int,
                         help='input image size of short edge (int or list)')
     parser.add_argument('--imgMaxSize', default=1000, type=int,
                         help='maximum input image size of long edge')
-    parser.add_argument('--padding_constant', default=8, type=int,
+    parser.add_argument('--padding_constant', default=32, type=int,
                         help='maxmimum downsampling rate of the network')
-    parser.add_argument('--segm_downsampling_rate', default=8, type=int,
+    parser.add_argument('--segm_downsampling_rate', default=4, type=int,
                         help='downsampling rate of the segmentation label')
     parser.add_argument('--random_flip', default=True, type=bool,
                         help='if horizontally flip images when training')
