@@ -1,6 +1,6 @@
 # Unified Perceptual Parsing for Scene Understanding (Under Construction)
 
-This is a pyTorch implementation of Unified Perceptual Parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding](), to which [Tete Xiao](http://tetexiao.com), Yingcheng Liu, and [Bolei Zhou](http://people.csail.mit.edu/bzhou/) contribute equally.
+This is a pyTorch implementation of Unified Perceptual Parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding](https://arxiv.org/abs/1807.10221), to which [Tete Xiao](http://tetexiao.com), Yingcheng Liu, and [Bolei Zhou](http://people.csail.mit.edu/bzhou/) contribute equally.
 
 Broden+ dataset is the standardized Broden dataset, previously proposed in [Network Dissection](https://github.com/CSAILVision/NetDissect). ADE20K dataset is a recent image dataset for [scene parsing](https://github.com/CSAILVision/semantic-segmentation-pytorch). 
 
@@ -13,6 +13,14 @@ The human visual system is able to extract a remarkable amount of semantic infor
 <img src="./teaser/result_samples.jpg" width="900"/>
 [From left to right (inference results): scene classification, and object, part, material, and texture parsing]
 
+## Highlights
+- Classify scene and parse objects, parts, materials and textures as a single and efficient forward.
+
+- Use Precise RoI Pooling (PrRoIPooling) instead of Adaptive Pooling for Pyramid Pooling Module (PPM). See [Acquisition of Localization Confidence for Accurate Object Detection](https://arxiv.org/abs/1807.11590) paper for details about PrRoIPooling and [github page](https://github.com/vacancy/PreciseRoIPooling) for implementation details.
+
+- Syncronized Batch Normalization on PyTorch.
+
+- Dynamic scales of input for training with multiple GPUs.
 
 ## Use pretrained models
 
@@ -35,19 +43,42 @@ You can use our pretrained models in PyTorch to segment input image. The usage i
 You can train the networks and evaluate them on the Broden+ dataset
 
 1. Download and process the Broden+ dataset.
-```
+```bash
     chmod +w download_Broden+.sh
     ./download_Broden+.sh
 ```
 This script downloads and saves the Broden+ dataset to the ```broden_dataset``` directory, then resizes the images whose both sides are largers than 512 pixels.
 
-2. Training a default network (ResNet-50 + UPerNet) for scene classifcation + object, part and material parsing. During training, checkpoints will be saved in folder ```ckpt```.
-```
-python3 train.py --num_gpus 8 --arch_encoder resnet50 --arch_decoder upernet 
---segm_downsampling_rate 4 --padding_constant 32 --num_epoch 40
+2. Train a default network (ResNet-50 + UPerNet) for scene classifcation + object, part and material parsing. During training, checkpoints will be saved in folder ```ckpt```.
+```bash
+    python3 train.py --num_gpus 8 --arch_encoder resnet50 --arch_decoder upernet 
+    --segm_downsampling_rate 4 --padding_constant 32 --num_epoch 40
 ```
 
-3. Evaluate the trained model.
+3. Input arguments: (see full input arguments via ```python3 train.py -h ```)
+```bash
+usage: train.py [-h] [--id ID] [--arch_encoder ARCH_ENCODER]
+                [--arch_decoder ARCH_DECODER]
+                [--weights_encoder WEIGHTS_ENCODER]
+                [--weights_decoder WEIGHTS_DECODER] [--fc_dim FC_DIM]
+                [--num_gpus NUM_GPUS]
+                [--batch_size_per_gpu BATCH_SIZE_PER_GPU]
+                [--num_epoch NUM_EPOCH] [--start_epoch START_EPOCH]
+                [--epoch_iters EPOCH_ITERS] [--optim OPTIM]
+                [--lr_encoder LR_ENCODER] [--lr_decoder LR_DECODER]
+                [--lr_pow LR_POW] [--beta1 BETA1]
+                [--weight_decay WEIGHT_DECAY] [--fix_bn FIX_BN]
+                [--workers WORKERS] [--imgSize IMGSIZE [IMGSIZE ...]]
+                [--imgMaxSize IMGMAXSIZE]
+                [--padding_constant PADDING_CONSTANT]
+                [--segm_downsampling_rate SEGM_DOWNSAMPLING_RATE]
+                [--random_flip RANDOM_FLIP] [--seed SEED] [--ckpt CKPT]
+                [--disp_iter DISP_ITER]
+```
+
+## Evaluation on Broden+
+
+1. Evaluate the trained model.
 ```
 
 ```
@@ -56,11 +87,12 @@ python3 train.py --num_gpus 8 --arch_encoder resnet50 --arch_decoder upernet
 
 If you find the code or the pretrained models useful, please consider to cite the following paper:
 
-```
-    @article{xiao2018unified,
+Unified Perceptual Parsing for Scene Understanding. T. Xiao, Y. Liu, B. Zhou, Y. Jiang, and J. Sun. European Conference on Computer Vision (ECCV), 2018. (https://arxiv.org/abs/1807.10221)
+
+    @inproceedings{xiao2018unified,
       title={Unified Perceptual Parsing for Scene Understanding},
       author={Xiao, Tete and Liu, Yingcheng and Zhou, Bolei and Jiang, Yuning and Sun, Jian},
-      journal={European Conference on Computer Vision},
-      year={2018}
+      booktitle={European Conference on Computer Vision},
+      year={2018},
+      organization={Springer}
     }
-``` 
