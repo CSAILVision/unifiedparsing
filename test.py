@@ -16,56 +16,95 @@ from lib.nn import user_scattered_collate, async_copy_to
 from lib.utils import as_numpy, mark_volatile
 import lib.utils.data as torchdata
 import cv2
+from broden_dataset_utils.joint_dataset import broden_dataset
+from utils import maskrcnn_colorencode, remove_small_mat
 
 
 def visualize_result(data, preds, args):
-    colors = loadmat('data/color150.mat')['colors']
-    (img, info) = data
 
-    # prediction
-    pred_color = colorEncode(preds, colors)
+    np.random.seed(233)
+    color_list = np.random.rand(1000, 3) * .7 + .3
 
-    # aggregate images and save
-    im_vis = np.concatenate((img, pred_color),
-                            axis=1).astype(np.uint8)
+    # image
+    img = data['img_ori']
+    cv2.imwrite(os.path.join(args.result, "original_image.jpg"), img)
 
-    img_name = info.split('/')[-1]
-    cv2.imwrite(os.path.join(args.result,
-                img_name.replace('.jpg', '.png')), im_vis)
+    # object
+    object_result = preds['object']
+    object_result_colored = maskrcnn_colorencode(img, object_result, color_list)
+    cv2.imwrite(os.path.join(args.result, "object_result.png"), object_result_colored)
+
+    # part
+    img_part_pred, part_result = img.copy(), preds['part']
+    valid_object = np.zeros_like(object_result)
+    present_obj_labels = np.unique(object_result)
+    for obj_part_index, object_label in enumerate(broden_dataset.object_with_part):
+        if object_label not in present_obj_labels:
+            continue
+        object_mask = (object_result == object_label)
+        valid_object += object_mask
+        part_result_masked = part_result[obj_part_index] * object_mask
+        present_part_label = np.unique(part_result_masked)
+        if len(present_part_label) == 1:
+            continue
+        img_part_pred = maskrcnn_colorencode(
+            img_part_pred, part_result_masked + object_mask, color_list)
+    cv2.imwrite(os.path.join(args.result, "part_result.png"), img_part_pred)
+
+    # scene
+    print("scene shape: {}".format(preds['scene'].shape))
+    scene_top5 = np.argsort(-preds['scene'])[:5]
+    with open(os.path.join(args.result, "scene.txt"), 'w') as f:
+        f.write("scene pred:\n")
+        scene_info = ["{}({}) {:.4f}".format(
+            l, broden_dataset.names['scene'][l], preds['scene'][l])
+            for l in scene_top5]
+        f.write("\n".join(scene_info))
+
+    # material
+    material_result = preds['material']
+    img_material_result = maskrcnn_colorencode(
+        img, remove_small_mat(material_result * (valid_object > 0), object_result), color_list)
+    cv2.imwrite("material_result.png", img_material_result)
 
 
 def test(segmentation_module, loader, args):
     segmentation_module.eval()
 
-    for i, batch_data in enumerate(loader):
+    for i, data in enumerate(loader):
         # process data
-        batch_data = batch_data[0]
-        segSize = (batch_data['img_ori'].shape[0],
-                   batch_data['img_ori'].shape[1])
-
-        img_resized_list = batch_data['img_data']
+        data = data[0]
+        seg_size = data['img_ori'].shape[0:2]
 
         with torch.no_grad():
-            pred = torch.zeros(1, args.num_class, segSize[0], segSize[1])
+            pred_ms = {}
+            for k in ['object', 'material']:
+                pred_ms[k] = torch.zeros(1, args.nr_classes[k], *seg_size)
+            pred_ms['part'] = []
+            for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                n_part = len(broden_dataset.object_part[object_label])
+                pred_ms['part'].append(torch.zeros(1, n_part, *seg_size))
+            pred_ms['scene'] = torch.zeros(1, args.nr_classes['scene'])
 
-            for img in img_resized_list:
-                feed_dict = batch_data.copy()
-                feed_dict['img_data'] = img
-                del feed_dict['img_ori']
-                del feed_dict['info']
-                feed_dict = async_copy_to(feed_dict, args.gpu_id)
-
+            for img in data['img_data']:
                 # forward pass
-                pred_tmp = segmentation_module(feed_dict, segSize=segSize)
-                pred = pred + pred_tmp.cpu() / len(args.imgSize)
+                feed_dict = async_copy_to({"img": img}, args.gpu_id)
+                pred = segmentation_module(feed_dict, seg_size=seg_size)
+                for k in ['scene', 'object', 'material']:
+                    pred_ms[k] = pred_ms[k] + pred[k].cpu() / len(args.imgSize)
+                for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                    pred_ms['part'][idx_part] += pred['part'][idx_part].cpu() / len(args.imgSize)
 
-            _, preds = torch.max(pred, dim=1)
-            preds = as_numpy(preds.squeeze(0))
+            pred_ms['scene'] = pred_ms['scene'].squeeze(0)
+            for k in ['object', 'material']:
+                _, p_max = torch.max(pred_ms[k].cpu(), dim=1)
+                pred_ms[k] = p_max.squeeze(0)
+            for idx_part, object_label in enumerate(broden_dataset.object_with_part):
+                _, p_max = torch.max(pred_ms['part'][idx_part].cpu(), dim=1)
+                pred_ms['part'][idx_part] = p_max.squeeze(0)
+            pred_ms = as_numpy(pred_ms)
 
-        # visualization
-        visualize_result(
-            (batch_data['img_ori'], batch_data['info']),
-            preds, args)
+        visualize_result(data, pred_ms, args)
 
         print('[{}] iter {}'
               .format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), i))
@@ -83,13 +122,12 @@ def main(args):
     net_decoder = builder.build_decoder(
         arch=args.arch_decoder,
         fc_dim=args.fc_dim,
-        num_class=args.num_class,
+        nr_classes=args.nr_classes,
         weights=args.weights_decoder,
         use_softmax=True)
-
-    crit = nn.NLLLoss(ignore_index=-1)
-
-    segmentation_module = SegmentationModule(net_encoder, net_decoder, crit)
+    
+    segmentation_module = SegmentationModule(net_encoder, net_decoder)
+    segmentation_module.cuda()
 
     # Dataset and Loader
     list_test = [{'fpath_img': args.test_img}]
@@ -102,8 +140,6 @@ def main(args):
         collate_fn=user_scattered_collate,
         num_workers=5,
         drop_last=True)
-
-    segmentation_module.cuda()
 
     # Main loop
     test(segmentation_module, loader_val, args)
@@ -157,6 +193,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
+
+    nr_classes = broden_dataset.nr.copy()
+    nr_classes['part'] = sum(
+        [len(parts) for obj, parts in broden_dataset.object_part.items()])
+    args.nr_classes = nr_classes
 
     # absolute paths of model weights
     args.weights_encoder = os.path.join(args.model_path,

@@ -4,7 +4,7 @@ import os
 
 import numpy
 
-from loadseg import AbstractSegmentation
+from .loadseg import AbstractSegmentation
 
 
 class DtdSegmentation(AbstractSegmentation):

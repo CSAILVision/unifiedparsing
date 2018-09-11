@@ -8,10 +8,10 @@ from collections import namedtuple
 
 import numpy
 
-import adeseg
-import dtdseg
-import osseg
-import pascalseg
+from . import adeseg
+from . import dtdseg
+from . import osseg
+from . import pascalseg
 
 
 class BrodenDataset:

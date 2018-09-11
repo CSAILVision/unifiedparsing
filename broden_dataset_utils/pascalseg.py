@@ -5,7 +5,7 @@ import re
 import numpy
 from scipy.io import loadmat
 
-from loadseg import AbstractSegmentation
+from .loadseg import AbstractSegmentation
 
 
 class PascalSegmentation(AbstractSegmentation):

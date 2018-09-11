@@ -5,7 +5,7 @@ from csv import DictReader
 import numpy
 from scipy.misc import imread
 
-from loadseg import AbstractSegmentation
+from .loadseg import AbstractSegmentation
 
 
 class OpenSurfaceSegmentation(AbstractSegmentation):

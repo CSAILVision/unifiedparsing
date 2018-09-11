@@ -8,7 +8,7 @@ import numpy
 from scipy.io import loadmat
 from scipy.misc import imread
 
-from loadseg import AbstractSegmentation
+from .loadseg import AbstractSegmentation
 
 
 class AdeSegmentation(AbstractSegmentation):

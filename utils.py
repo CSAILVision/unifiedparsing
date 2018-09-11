@@ -1,6 +1,8 @@
 import numpy as np
 import re
 import functools
+import cv2
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -95,6 +97,98 @@ def colorEncode(labelmap, colors, mode='BGR'):
         return labelmap_rgb[:, :, ::-1]
     else:
         return labelmap_rgb
+
+
+def MydrawMask(img, masks, lr=(None, None), alpha=None, clrs=None, info=None):
+    n, h, w = masks.shape[0], masks.shape[1], masks.shape[2]
+    if lr[0] is None:
+        lr = (0, n)
+    if alpha is None:
+        alpha = [.4, .4, .4]
+    alpha = [.6, .6, .6]
+    if clrs is None:
+        clrs = np.zeros((n,3)).astype(np.float)
+        for i in range(n):
+            for j in range(3):
+                clrs[i][j] = np.random.random()*.6+.4
+
+    for i in range(max(0, lr[0]), min(n, lr[1])):
+        M = masks[i].reshape(-1)
+        B = np.zeros(h*w, dtype = np.int8)
+        ix, ax, iy, ay = 99999, 0, 99999, 0
+        for y in range(h-1):
+            for x in range(w-1):
+                k = y*w+x
+                if M[k] == 1:
+                    ix = min(ix, x)
+                    ax = max(ax, x)
+                    iy = min(iy, y)
+                    ay = max(ay, y)
+                if M[k] != M[k+1]:
+                    B[k], B[k+1] =1,1
+                if M[k] != M[k+w]:
+                    B[k], B[k+w] =1,1
+                if M[k] != M[k+1+w]:
+                    B[k], B[k+1+w] = 1,1
+        M.shape = (h,w)
+        B.shape = (h,w)
+        for j in range(3):
+            O,c,a = img[:,:,j], clrs[i][j], alpha[j]
+            am = a*M
+            O = O - O*am + c*am*255
+            img[:,:,j] = O*(1-B)+c*B
+        #cv2.rectangle(img, (ix,iy), (ax,ay), (0,255,0))
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        x, y = ix-1, iy-1
+        if x<0:
+            x=0
+        if y<10:
+            y+=7
+        if int(img[y,x,0])+int(img[y,x,1])+int(img[y,x,2]) > 650:
+            col = (255,0,0)
+        else:
+            col = (255,255,255)
+        #col = (255,0,0)
+        #cv2.putText(img, id2class[info['category_id']]+': %.3f' % info['score'], (x, y), font, .3, col, 1)
+    return img
+
+
+def maskrcnn_colorencode(img, label_map, color_list):
+    # do not modify original list
+    label_map = np.array(np.expand_dims(label_map, axis=0), np.uint8)
+    #label_map = label_map.transpose(1, 2, 0)
+    label_list = list(np.unique(label_map))
+    out_img = img.copy()
+    for i, label in enumerate(label_list):
+        if label == 0: continue
+        this_label_map = (label_map == label)
+        alpha = [0, 0, 0]
+        o = i
+        if o >= 6:
+            o = np.random.randint(1, 6)
+        o_lst = [o%2, (o // 2)%2, o//4]
+        for j in range(3):
+            alpha[j] = np.random.random() * 0.5 + 0.45
+            alpha[j] *= o_lst[j]
+        out_img = MydrawMask(out_img, this_label_map, alpha=alpha,
+                clrs=np.expand_dims(color_list[label], axis=0))
+    return out_img
+
+
+def remove_small_mat(seg_mat, seg_obj, threshold=0.1):
+    object_list = np.unique(seg_obj)
+    seg_mat_new = np.zeros_like(seg_mat)
+    for obj_label in object_list:
+        obj_mask = (seg_obj == obj_label)
+        mat_result = seg_mat * obj_mask
+        mat_sum = obj_mask.sum()
+        for mat_label in np.unique(mat_result):
+            mat_area = (mat_result == mat_label).sum()
+            if mat_area / float(mat_sum) < threshold:
+                continue
+            seg_mat_new += mat_result * (mat_result == mat_label)
+        # sorted_mat_index = np.argsort(-np.asarray(mat_area))
+    return seg_mat_new
 
 
 def accuracy(preds, label):

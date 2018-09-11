@@ -22,25 +22,6 @@ import lib.utils.data as torchdata
 from broden_dataset_utils.joint_dataset import broden_dataset
 
 
-def visualize_result(data, preds, args):
-    colors = loadmat('data/color150.mat')['colors']
-    (img, seg, info) = data
-
-    # segmentation
-    seg_color = colorEncode(seg, colors)
-
-    # prediction
-    pred_color = colorEncode(preds, colors)
-
-    # aggregate images and save
-    im_vis = np.concatenate((img, seg_color, pred_color),
-                            axis=1).astype(np.uint8)
-
-    img_name = info.split('/')[-1]
-    cv2.imwrite(os.path.join(args.result,
-                img_name.replace('.jpg', '.png')), im_vis)
-
-
 def get_metrics(pred, data):
     metric = {}
 
@@ -142,12 +123,6 @@ def evaluate(segmentation_module, loader, args, dev_id, result_queue):
 
         # calculate accuracy and SEND THEM TO MASTER
         result_queue.put_nowait(get_metrics(pred_ms, data_np))
-
-        # visualization
-        # if args.visualize:
-        #     visualize_result(
-        #         (data['img_ori'], seg_label, data['info']),
-        #         preds, args)
 
 
 def worker(args, dev_id, start_idx, end_idx, result_queue):
