@@ -73,7 +73,7 @@ You can train the networks and evaluate them on the Broden+ dataset
     chmod +w download_Broden+.sh
     ./download_Broden+.sh
 ```
-This script downloads and saves the Broden+ dataset to the ```broden_dataset``` directory, then resizes the images whose both sides are largers than 512 pixels.
+This script downloads and saves the Broden+ dataset to the ```broden_dataset``` directory, then resizes the images with at least one side longer than 512 pixels. The downloading and data processing may take some time.
 
 2. Train a default network (ResNet-50 + UPerNet) for scene classifcation + object, part and material parsing. During training, checkpoints will be saved in folder ```ckpt```.
 ```bash
