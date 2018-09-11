@@ -1,6 +1,6 @@
 # Unified Perceptual Parsing for Scene Understanding (Under Construction)
 
-This is a pyTorch implementation of Unified Perceptual Parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding](https://arxiv.org/abs/1807.10221), to which [Tete Xiao](http://tetexiao.com), Yingcheng Liu, and [Bolei Zhou](http://people.csail.mit.edu/bzhou/) contribute equally.
+This is a pyTorch implementation of Unified Perceptual Parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding](https://arxiv.org/abs/1807.10221), to which [Tete Xiao](http://tetexiao.com), [Yingcheng Liu](https://github.com/firstmover), and [Bolei Zhou](http://people.csail.mit.edu/bzhou/) contribute equally.
 
 Broden+ dataset is the standardized Broden dataset, previously proposed in [Network Dissection](https://github.com/CSAILVision/NetDissect). ADE20K dataset is a recent image dataset for [scene parsing](https://github.com/CSAILVision/semantic-segmentation-pytorch). 
 
@@ -30,7 +30,7 @@ The code is developed under the following configurations.
 
 *Warning:* We don't support the outdated Python 2 anymore. PyTorch 0.4.0 or higher is required to run the code.
 
-## Use pretrained models
+## Quick start: Use pretrained models
 
 ### Pertrained models for semantic segmentation on ADE20K
 
@@ -38,13 +38,31 @@ We have released the UPerNet with state-of-the-art performance proposed in our p
 
 ### Pretrained models for unified perceptual parsing on Broden+
 
-We are working to implement UPerNet trained for UPP in PyTorch. Please stay tuned! :)
-
 You can use our pretrained models in PyTorch to segment input image. The usage is as follows:
 
+1. Compile Precise RoI Pooling operator. It requires PyTorch>=0.4 (compiled with ```cffi```) and only supports CUDA (CPU mode is not implemented). To compile the essential components:
+
+```bash
+    cd lib/nn/modules/prroi_pool
+    ./travis.sh
+```  
+You may need ```nvcc``` for this step. If it cannot find the path to ```cuda.h```, do
+
+```bash
+    export CPATH=/PATH/TO/YOUR/CUDA/include && ./travis.sh
 ```
 
+2. Now you're good to go! Here is a simple demo to do inference on a single image:
+
+```bash
+chmod +x demo_test.sh
+./demo_test.sh
 ```
+
+This script downloads trained models and a test image, runs the test script, and saves predicted segmentation (.png) to the working directory.
+
+3. Input arguments: (see full input arguments via python3 test.py -h)
+
 
 ## Training on Broden+
 
@@ -86,10 +104,15 @@ usage: train.py [-h] [--id ID] [--arch_encoder ARCH_ENCODER]
 
 ## Evaluation on Broden+
 
-1. Evaluate the trained model.
-```
+1. Evaluate a trained network on the validation set. Add ```--visualize``` option to output visualizations as shown in teaser (w/o class labels :( 
 
+```bash
+    python3 eval_multipro.py --arch_encoder resnet50 --arch_decoder upernet --id MODEL_ID \
+    --suffix SUFFIX --devices DEVICE_ID
 ```
+***This is a multi-GPU evaluation script.*** It is extremely easy to use. For example, to run the evaluation code on 8 GPUs, simply add ```--devices 0-7```. You can also choose which GPUs to use, for example, ```--devices 0,2,4,6```. To use only a single GPU, use ```--devices 0```.
+
+2. Input arguments: (see full input arguments via ```python3 eval_multipro.py -h ```)
 
 ## Reference
 
