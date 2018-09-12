@@ -6,8 +6,8 @@ from multiprocessing import Pool, cpu_count
 
 import cv2
 
-import adeseg
-import osseg
+from broden_dataset_utils import adeseg
+from broden_dataset_utils import osseg
 
 
 def generate_resized_ade20k(ade_dir):

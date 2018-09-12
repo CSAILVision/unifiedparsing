@@ -335,7 +335,7 @@ class UPerNet(nn.Module):
         roi = torch.cat(roi, dim=0).type_as(conv5)
         ppm_out = [conv5]
         for pool_scale, pool_conv in zip(self.ppm_pooling, self.ppm_conv):
-            ppm_out.append(pool_conv(nn.functional.upsample(
+            ppm_out.append(pool_conv(F.interpolate(
                 pool_scale(conv5, roi.detach()),
                 (input_size[2], input_size[3]),
                 mode='bilinear', align_corners=False)))
@@ -351,7 +351,7 @@ class UPerNet(nn.Module):
                 conv_x = conv_out[i]
                 conv_x = self.fpn_in[i](conv_x) # lateral branch
 
-                f = nn.functional.upsample(
+                f = F.interpolate(
                     f, size=conv_x.size()[2:], mode='bilinear', align_corners=False) # top-down branch
                 f = conv_x + f
 
@@ -366,7 +366,7 @@ class UPerNet(nn.Module):
                 output_size = fpn_feature_list[0].size()[2:]
                 fusion_list = [fpn_feature_list[0]]
                 for i in range(1, len(fpn_feature_list)):
-                    fusion_list.append(nn.functional.upsample(
+                    fusion_list.append(F.interpolate(
                         fpn_feature_list[i],
                         output_size,
                         mode='bilinear', align_corners=False))
@@ -388,17 +388,17 @@ class UPerNet(nn.Module):
             # inference object, material
             for k in ['object', 'material']:
                 x = output_dict[k]
-                x = F.upsample(x, size=seg_size, mode='bilinear', align_corners=False)
+                x = F.interpolate(x, size=seg_size, mode='bilinear', align_corners=False)
                 x = F.softmax(x, dim=1)
                 output_dict[k] = x
 
             # inference part
             x = output_dict['part']
-            x = F.upsample(x, size=seg_size, mode='bilinear', align_corners=False)
+            x = F.interpolate(x, size=seg_size, mode='bilinear', align_corners=False)
             part_pred_list, head = [], 0
             for idx_part, object_label in enumerate(broden_dataset.object_with_part):
                 n_part = len(broden_dataset.object_part[object_label])
-                _x = F.upsample(x[:, head: head + n_part], size=seg_size, mode='bilinear', align_corners=False)
+                _x = F.interpolate(x[:, head: head + n_part], size=seg_size, mode='bilinear', align_corners=False)
                 _x = F.softmax(_x, dim=1)
                 part_pred_list.append(_x)
                 head += n_part
@@ -410,7 +410,7 @@ class UPerNet(nn.Module):
                 if output_dict[k] is None:
                     continue
                 x = output_dict[k]
-                x = nn.functional.log_softmax(x, dim=1)
+                x = F.log_softmax(x, dim=1)
                 if k == "scene":  # for scene
                     x = x.squeeze(3).squeeze(2)
                 output_dict[k] = x
