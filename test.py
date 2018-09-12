@@ -65,7 +65,7 @@ def visualize_result(data, preds, args):
     material_result = preds['material']
     img_material_result = maskrcnn_colorencode(
         img, remove_small_mat(material_result * (valid_object > 0), object_result), color_list)
-    cv2.imwrite("material_result.png", img_material_result)
+    cv2.imwrite(os.path.join(args.result, "material_result.png"), img_material_result)
 
 
 def test(segmentation_module, loader, args):
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     parser.add_argument('--test_img', required=True)
     parser.add_argument('--model_path', required=True,
                         help='folder to model path')
-    parser.add_argument('--suffix', default='_epoch_20.pth',
+    parser.add_argument('--suffix', default='_epoch_40.pth',
                         help="which snapshot to load")
 
     # Model related arguments
@@ -186,7 +186,7 @@ if __name__ == '__main__':
                         help='downsampling rate of the segmentation label')
 
     # Misc arguments
-    parser.add_argument('--result', default='.',
+    parser.add_argument('--result', default='./',
                         help='folder to output visualization results')
     parser.add_argument('--gpu_id', default=0, type=int,
                         help='gpu_id for evaluation')
