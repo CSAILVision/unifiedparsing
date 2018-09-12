@@ -1,4 +1,4 @@
-# Unified Perceptual Parsing for Scene Understanding (Under Construction)
+# Unified Perceptual Parsing for Scene Understanding
 
 This is a pyTorch implementation of Unified Perceptual Parsing network on Broden+ dataset and ADE20K dataset. This work is published at ECCV'18 [Unified Perceptual Parsing for Scene Understanding](https://arxiv.org/abs/1807.10221), to which [Tete Xiao](http://tetexiao.com), [Yingcheng Liu](https://github.com/firstmover), and [Bolei Zhou](http://people.csail.mit.edu/bzhou/) contribute equally.
 
@@ -14,7 +14,7 @@ The human visual system is able to extract a remarkable amount of semantic infor
 [From left to right (inference results): scene classification, and object, part, material, and texture parsing]
 
 ## Highlights
-- Classify scene and parse objects, parts, materials and textures as a single and efficient forward.
+- Classify scene and parse objects, parts, materials and textures at a single and efficient forward.
 
 - Use Precise RoI Pooling (PrRoIPooling) instead of Adaptive Pooling for Pyramid Pooling Module (PPM). See [Acquisition of Localization Confidence for Accurate Object Detection](https://arxiv.org/abs/1807.11590) paper for details about PrRoIPooling and [github page](https://github.com/vacancy/PreciseRoIPooling) for implementation details.
 
@@ -62,7 +62,16 @@ chmod +x demo_test.sh
 This script downloads trained models and a test image, runs the test script, and saves predicted segmentation (.png) to the working directory.
 
 3. Input arguments: (see full input arguments via python3 test.py -h)
-
+```bash
+usage: test.py [-h] --test_img TEST_IMG --model_path MODEL_PATH
+               [--suffix SUFFIX] [--arch_encoder ARCH_ENCODER]
+               [--arch_decoder ARCH_DECODER] [--fc_dim FC_DIM]
+               [--num_val NUM_VAL] [--num_class NUM_CLASS]
+               [--batch_size BATCH_SIZE] [--imgSize IMGSIZE [IMGSIZE ...]]
+               [--imgMaxSize IMGMAXSIZE] [--padding_constant PADDING_CONSTANT]
+               [--segm_downsampling_rate SEGM_DOWNSAMPLING_RATE]
+               [--result RESULT] [--gpu_id GPU_ID]
+```
 
 ## Training on Broden+
 
