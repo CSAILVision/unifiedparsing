@@ -112,5 +112,5 @@ fi
 
 # Resize ADE20 and Opensurfaces
 echo "Resize images"
-python3 broden_dataset_utils/resize_images.py
+python3 resize_images.py
 echo "Resize done!"
