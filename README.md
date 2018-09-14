@@ -43,7 +43,7 @@ You can use our pretrained models in PyTorch to segment input image. The usage i
 1. Compile Precise RoI Pooling operator. It requires PyTorch>=0.4 (compiled with ```cffi```) and only supports CUDA (CPU mode is not implemented). To compile the essential components:
 
 ```bash
-    cd lib/nn/modules/prroi_pool
+    cd lib/nn/prroi_pool
     ./travis.sh
 ```  
 You may need ```nvcc``` for this step. If it cannot find the path to ```cuda.h```, do
