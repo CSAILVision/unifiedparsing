@@ -33,7 +33,6 @@ def uint16_imresize(seg, shape):
 
 class TrainDataset(torchdata.Dataset):
     def __init__(self, records, source_idx, opt, max_sample=-1, batch_per_gpu=1):
-        self.root_dataset = opt.root_dataset
         self.imgSize = opt.imgSize
         self.imgMaxSize = opt.imgMaxSize
         self.random_flip = opt.random_flip
@@ -245,7 +244,6 @@ class TrainDataset(torchdata.Dataset):
 
 class ValDataset(torchdata.Dataset):
     def __init__(self, records, opt, max_sample=-1, start_idx=-1, end_idx=-1):
-        self.root_dataset = opt.root_dataset
         self.imgSize = opt.imgSize
         self.imgMaxSize = opt.imgMaxSize
         # max down sampling rate of network to avoid rounding during conv or pooling
