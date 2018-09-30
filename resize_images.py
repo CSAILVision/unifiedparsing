@@ -36,15 +36,15 @@ def resize_data_ade(record, verbose):
         h_new, w_new = round(h / float(w) * max_size), max_size
     else:
         return 0
-    cv2.imwrite(img_path, cv2.resize(img, (h_new, w_new),
+    cv2.imwrite(img_path, cv2.resize(img, (w_new, h_new),
                                      interpolation=cv2.INTER_LINEAR))
     seg_obj_path = md["seg_filename"]
     seg = cv2.imread(seg_obj_path)
-    cv2.imwrite(seg_obj_path, cv2.resize(seg, (h_new, w_new),
+    cv2.imwrite(seg_obj_path, cv2.resize(seg, (w_new, h_new),
                                          interpolation=cv2.INTER_NEAREST))
     for i, seg_part_path in enumerate(md["part_filenames"]):
         seg = cv2.imread(seg_part_path)
-        cv2.imwrite(seg_part_path, cv2.resize(seg, (h_new, w_new),
+        cv2.imwrite(seg_part_path, cv2.resize(seg, (w_new, h_new),
                                               interpolation=cv2.INTER_NEAREST))
     return 0
 
