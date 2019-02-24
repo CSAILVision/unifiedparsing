@@ -42,7 +42,7 @@ We have released the UPerNet with state-of-the-art performance proposed in our p
 
 You can use our pretrained models in PyTorch to segment input image. The usage is as follows:
 
-1. If you're using PyTorch>=1.0 and on branch master or PyTorch 1.0, skip this step. If you're using 0.4<=PyTorch<1.0, please compile Precise RoI Pooling operator first (***Please check out to pytorch0.4 branch!!!***). It requires PyTorch compiled with ```cffi``` and only supports CUDA (CPU mode is not implemented). To compile the essential components:
+1. If you're using PyTorch>=1.0 and on branch master or PyTorch 1.0, skip this step. If you're using 0.4<=PyTorch<1.0, please compile Precise RoI Pooling operator first. (**Please check out to pytorch0.4 branch!!!**) It requires PyTorch compiled with ```cffi``` and only supports CUDA (CPU mode is not implemented). To compile the essential components:
 
 ```bash
     cd lib/nn/prroi_pool
