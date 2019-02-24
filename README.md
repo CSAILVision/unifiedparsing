@@ -22,10 +22,12 @@ The human visual system is able to extract a remarkable amount of semantic infor
 
 - Dynamic scales of input for training with multiple GPUs.
 
+- Support state-of-the-art PyTorch 1.0
+
 ## Environment
 The code is developed under the following configurations.
 - Hardware: 2-8 GPUs (with at least 12G GPU memories) (change ```[--num_gpus NUM_GPUS]``` accordingly)
-- Software: Ubuntu 16.04.3 LTS, CUDA>=8.0, ***Python>=3.5***, ***PyTorch>=0.4.0***
+- Software: Ubuntu 16.04.3 LTS, CUDA>=8.0, ***Python>=3.5***, ***PyTorch>=0.4.0 (PyTorch 1.0 supported)***
 - Library: opencv, scipy, colormath, tqdm, PyTorch compiled with cffi
 
 *Warning:* We don't support the outdated Python 2 anymore. PyTorch 0.4.0 or higher is required to run the code.
@@ -40,7 +42,7 @@ We have released the UPerNet with state-of-the-art performance proposed in our p
 
 You can use our pretrained models in PyTorch to segment input image. The usage is as follows:
 
-1. Compile Precise RoI Pooling operator. It requires PyTorch>=0.4 (compiled with ```cffi```) and only supports CUDA (CPU mode is not implemented). To compile the essential components:
+1. If you're using PyTorch>=1.0 and on branch master or PyTorch 1.0, skip this step. If you're using 0.4<=PyTorch<1.0, please compile Precise RoI Pooling operator first. (**Please check out to pytorch0.4 branch!!!**) It requires PyTorch compiled with ```cffi``` and only supports CUDA (CPU mode is not implemented). To compile the essential components:
 
 ```bash
     cd lib/nn/prroi_pool

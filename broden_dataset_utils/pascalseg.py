@@ -1,6 +1,7 @@
 
 import os
 import re
+import warnings
 
 import numpy
 from scipy.io import loadmat
@@ -13,7 +14,7 @@ class PascalSegmentation(AbstractSegmentation):
     Implements AbstractSegmentation for the pascal PARTS dataset.
     """
 
-    def __init__(self, directory, collapse_adjectives=None, version=None):
+    def __init__(self, directory, collapse_adjectives=None, version='VOC2010'):
         directory = os.path.expanduser(directory)
         # Default to the latest version present in the directory
         if version is None:
@@ -35,19 +36,24 @@ class PascalSegmentation(AbstractSegmentation):
         self.collapse_adjectives = collapse_adjectives
         # Load the parts coding metadata from part2ind.m
         codes = load_part2ind(
-            os.path.join(directory, self.partdir, 'part2ind.m'))
+            os.path.join('./meta_file/pascal/', 'part2ind.m'))
         # Normalized names
         self.codes = normalize_all_readable(codes, collapse_adjectives)
         self.part_object_names, self.part_names, self.part_key = normalize_part_key(self.codes)
         # Load the PASCAL context segmentation labels 
         self.object_names = load_context_labels(
-            os.path.join(directory, self.contextdir, 'labels.txt'))
+            os.path.join('./meta_file/pascal/', 'context_labels.txt'))
         self.unknown_label = self.object_names.index('unknown')
         self.object_names[self.unknown_label] = '-'  # normalize unknown
         # Assume every mat file in the relevant directory is a segmentation.
-        self.segs = sorted([n for n in os.listdir(
-            os.path.join(directory, self.partdir, 'Annotations_Part'))
-                            if n.endswith('.mat')])
+        try:
+            self.segs = sorted([n for n in os.listdir(
+                os.path.join(directory, self.partdir, 'Annotations_Part'))
+                                if n.endswith('.mat')])
+        except OSError:
+            message = 'Error when searching for pascal part annotations, please check your dataset.' \
+                        + ' With this error you may only use testing scripts. Training will fail unless you resolve this warning.'
+            warnings.warn(message)
 
     def all_names(self, category, j):
         if category == 'object':

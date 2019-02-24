@@ -14,7 +14,7 @@ class OpenSurfaceSegmentation(AbstractSegmentation):
         self.directory = directory
         # Process material labels: open label-substance-colors.csv
         subst_name_map = {}
-        with open(os.path.join(directory, 'label-substance-colors.csv')) as f:
+        with open(os.path.join('./meta_file/opensurfaces', 'label-substance-colors.csv')) as f:
             for row in DictReader(f):
                 subst_name_map[row['substance_name']] = int(row['red_color'])
         # NOTE: substance names should be normalized. 
@@ -22,7 +22,7 @@ class OpenSurfaceSegmentation(AbstractSegmentation):
         for k, v in list(subst_name_map.items()):
             self.substance_names[v] = k
         # Now load the metadata about images from photos.csv
-        with open(os.path.join(directory, 'photos.csv')) as f:
+        with open(os.path.join('./meta_file/opensurfaces/', 'photos.csv')) as f:
             self.image_meta = list(DictReader(f))
             scenes = set(row['scene_category_name'] for row in self.image_meta)
 

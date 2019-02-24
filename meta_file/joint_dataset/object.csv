@@ -1,0 +1,337 @@
+label,name
+0,-
+1,wall
+2,sky
+3,floor
+4,tree
+5,building
+6,person
+7,ceiling
+8,table
+9,window
+10,road
+11,grass
+12,chair
+13,car
+14,plant
+15,painting
+16,door
+17,sidewalk
+18,light
+19,cabinet
+20,signboard
+21,lamp
+22,ground
+23,curtain
+24,pole
+25,mountain
+26,fence
+27,streetlight
+28,bed
+29,sofa
+30,box
+31,earth
+32,shelf
+33,bottle
+34,cushion
+35,water
+36,book
+37,flower
+38,carpet
+39,mirror
+40,vase
+41,flowerpot
+42,sink
+43,dog
+44,armchair
+45,rock
+46,wall socket
+47,sconce
+48,pillow
+49,cat
+50,step
+51,pot
+52,plate
+53,railing
+54,clock
+55,bag
+56,column
+57,bicycle
+58,cloth
+59,coffee table
+60,ashcan
+61,spotlight
+62,bench
+63,boat
+64,basket
+65,work surface
+66,bowl
+67,desk
+68,airplane
+69,bird
+70,house
+71,plaything
+72,sea
+73,paper
+74,television
+75,chandelier
+76,cup
+77,pottedplant
+78,path
+79,switch
+80,stairway
+81,van
+82,stove
+83,truck
+84,awning
+85,chest of drawers
+86,traffic light
+87,seat
+88,poster
+89,glass
+90,flag
+91,telephone
+92,fire place
+93,rope
+94,towel
+95,monitor
+96,bucket
+97,bush
+98,stool
+99,field
+100,tray
+101,bannister
+102,trade name
+103,wood
+104,fan
+105,horse
+106,motorbike
+107,base
+108,train
+109,bathtub
+110,toilet
+111,refrigerator
+112,counter
+113,wardrobe
+114,food
+115,candlestick
+116,blind
+117,computer
+118,board
+119,palm
+120,bus
+121,track
+122,microwave
+123,sand
+124,sculpture
+125,fluorescent
+126,countertop
+127,swivel chair
+128,snow
+129,river
+130,air conditioner
+131,ottoman
+132,jar
+133,stair
+134,pack
+135,bridge
+136,skyscraper
+137,minibike
+138,loudspeaker
+139,figurine
+140,can
+141,sheep
+142,cow
+143,bookcase
+144,bedclothes
+145,exhaust hood
+146,hill
+147,napkin
+148,doorframe
+149,umbrella
+150,manhole
+151,case
+152,container
+153,coach
+154,dishwasher
+155,text
+156,knife
+157,crt screen
+158,magazine
+159,curb
+160,oven
+161,monitoring device
+162,gate
+163,blanket
+164,radiator
+165,platform
+166,central reservation
+167,bulletin board
+168,laptop
+169,shoe
+170,pool table
+171,metal
+172,fruit
+173,keyboard
+174,coffee maker
+175,candle
+176,faucet
+177,pipe
+178,handbag
+179,wineglass
+180,mug
+181,wire
+182,apparel
+183,land
+184,pitcher
+185,remote control
+186,bar
+187,grill
+188,ball
+189,backpack
+190,grandstand
+191,beam
+192,pane
+193,fork
+194,hedge
+195,notebook
+196,toilet tissue
+197,parking meter
+198,pen
+199,fireplug
+200,screen door
+201,brush
+202,heater
+203,booklet
+204,kitchen island
+205,tower
+206,ladder
+207,hat
+208,shower
+209,soap dispenser
+210,spoon
+211,post
+212,antenna
+213,buffet
+214,kettle
+215,traveling bag
+216,stage
+217,printer
+218,teapot
+219,chest
+220,embankment
+221,rack
+222,document
+223,crane
+224,mouse
+225,silver screen
+226,animal
+227,pier
+228,post box
+229,rod
+230,vent
+231,console table
+232,camera
+233,statue
+234,jacket
+235,dishrag
+236,microphone
+237,fountain
+238,paper towel
+239,pool ball
+240,washer
+241,mouse pad
+242,partition
+243,banner
+244,tent
+245,runway
+246,towel rack
+247,hanger
+248,guitar
+249,place mat
+250,system
+251,ashtray
+252,soap
+253,cue
+254,booth
+255,deck chair
+256,bouquet
+257,waterfall
+258,dirt track
+259,vending machine
+260,eyeglass
+261,drawer
+262,saddle
+263,canister
+264,helmet
+265,hovel
+266,shutter
+267,telephone booth
+268,shirt
+269,cradle
+270,candelabrum
+271,tank
+272,toaster
+273,traffic cone
+274,soap dish
+275,arcade machine
+276,machine
+277,net
+278,easel
+279,cart
+280,skylight
+281,cross
+282,newspaper
+283,canopy
+284,barrel
+285,smoke
+286,footbridge
+287,wheel
+288,baby buggy
+289,fire extinguisher
+290,shower stall
+291,swimming pool
+292,sales booth
+293,scaffolding
+294,fridge
+295,patty
+296,altar
+297,streetcar
+298,decoration
+299,tapestry
+300,trouser
+301,billboard
+302,file cabinet
+303,cap
+304,bread
+305,cage
+306,hot tub
+307,drawing
+308,saucepan
+309,piano
+310,dish
+311,conveyer belt
+312,arcade
+313,equipment
+314,trunk
+315,cd
+316,court
+317,blackboard
+318,lake
+319,ship
+320,railroad train
+321,lighthouse
+322,bus stop
+323,exhibitor
+324,jersey
+325,plinth
+326,fabric
+327,projector
+328,forecourt
+329,eiderdown
+330,mat
+331,cash register
+332,calendar
+333,briefcase
+334,stick
+335,chimney
