@@ -11,8 +11,7 @@ class DtdSegmentation(AbstractSegmentation):
     def __init__(self, directory):
         directory = os.path.expanduser(directory)
         self.directory = directory
-        with open(os.path.join(directory, 'labels',
-                               'labels_joint_anno.txt')) as f:
+        with open(os.path.join('./meta_file/dtd/', 'labels_joint_anno.txt')) as f:
             self.dtd_meta = [line.split(None, 1) for line in f.readlines()]
         # do not include '-' in texture names. No unlabeled sample in data. 
         self.textures = sorted(list(set(sum(

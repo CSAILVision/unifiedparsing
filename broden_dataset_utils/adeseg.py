@@ -27,13 +27,13 @@ class AdeSegmentation(AbstractSegmentation):
                 version = ''
         self.root = directory
         self.version = version
-        mat = loadmat(self.expand(self.version, 'index*.mat'), squeeze_me=True)
+        mat = loadmat(os.path.join('./meta_file/ade20k', 'index_ade20k.mat'), squeeze_me=True)
         index = mat['index']
         Ade20kIndex = namedtuple('Ade20kIndex', index.dtype.names)
         self.index = Ade20kIndex(
             **{name: index[name][()] for name in index.dtype.names})
         # Here we use adechallenger scene label instead of ade20k.
-        with open("./meta_file/scene_categories.txt", 'r') as f:
+        with open("./meta_file/ade20k/scene_categories.txt", 'r') as f:
             lines = f.readlines()
         self.index_scene_adecha = []
         for i, l in enumerate(lines):

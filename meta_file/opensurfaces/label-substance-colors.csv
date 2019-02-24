@@ -1,0 +1,46 @@
+substance_id,substance_name,red_color
+16,Brick,1
+12,Cardboard,2
+17,Carpet/rug,3
+2,Ceramic,4
+50,Chalkboard/blackboard,5
+19,Concrete,6
+51,Cork/corkboard,7
+53,Dirt,8
+29,Fabric/cloth,9
+40,Fire,10
+26,Foliage,11
+27,Food,12
+24,Fur,13
+6,Glass,14
+34,Granite,15
+49,Granite/marble,16
+36,Hair,17
+21,Laminate,18
+22,Leather,19
+47,Linoleum,20
+25,Marble,21
+10,Metal,22
+18,Mirror,23
+41,Painted,24
+37,Paper towel/tissue,25
+11,Paper/tissue,26
+13,Plaster,27
+32,Plastic - clear,28
+33,Plastic - opaque,29
+46,Rubber/latex,30
+20,Skin,31
+44,Sky,32
+45,Sponge,33
+23,Stone,34
+52,Styrofoam,35
+4,Tile,36
+5,Wallboard - painted,37
+15,Wallboard - unpainted,38
+39,Wallpaper,39
+28,Water,40
+42,Wax,41
+38,Wicker,42
+43,Wood,43
+3,Wood - natural color,44
+9,Wood - painted,45

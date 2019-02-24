@@ -46,7 +46,7 @@ class BrodenDataset:
         self.data_sets = OrderedDict(ade20k=ade, pascal=pascal, os=opensurface)
 
         """ use multi source dataset """
-        self.broden_dataset_info = "./meta_file"
+        self.broden_dataset_info = "./meta_file/joint_dataset"
         self.record_list = {"train": [], "validation": []}
         self.record_list['train'].append(get_records(
             os.path.join(self.broden_dataset_info, "broden_ade20k_pascal_train.json")))
