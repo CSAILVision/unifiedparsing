@@ -47,14 +47,19 @@ You can use our pretrained models in PyTorch to segment input image. The usage i
 ```bash
     cd lib/nn/prroi_pool
     ./travis.sh
-```  
+```
 You may need ```nvcc``` for this step. If it cannot find the path to ```cuda.h```, do
 
 ```bash
     export CPATH=/PATH/TO/YOUR/CUDA/include && ./travis.sh
 ```
 
-2. Now you're good to go! Here is a simple demo to do inference on a single image:
+2. Install required packages
+```bash
+pip install -r requirements.txt
+```
+
+3. Now you're good to go! Here is a simple demo to do inference on a single image:
 
 ```bash
 chmod +x demo_test.sh
@@ -63,7 +68,7 @@ chmod +x demo_test.sh
 
 This script downloads trained models and a test image, runs the test script, and saves predicted segmentation (.png) to the working directory.
 
-3. Input arguments: (see full input arguments via python3 test.py -h)
+4. Input arguments: (see full input arguments via python3 test.py -h)
 ```bash
 usage: test.py [-h] --test_img TEST_IMG --model_path MODEL_PATH
                [--suffix SUFFIX] [--arch_encoder ARCH_ENCODER]

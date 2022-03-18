@@ -1,6 +1,6 @@
 import torch
 import torch.multiprocessing as multiprocessing
-from torch._C import _set_worker_signal_handlers, _update_worker_pids, \
+from torch._C import _set_worker_signal_handlers, _set_worker_pids, \
     _remove_worker_pids, _error_if_any_worker_fails
 from .sampler import SequentialSampler, RandomSampler, BatchSampler
 import signal
@@ -235,7 +235,7 @@ class DataLoaderIter(object):
                 w.daemon = True  # ensure that the worker exits on process exit
                 w.start()
 
-            _update_worker_pids(id(self), tuple(w.pid for w in self.workers))
+            _set_worker_pids(id(self), tuple(w.pid for w in self.workers))
             _set_SIGCHLD_handler()
             self.worker_pids_set = True
 
